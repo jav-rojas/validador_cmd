@@ -13,7 +13,7 @@ from os.path import join as ospathjoin
 from imp import reload as impreload
 from sys import path as syspath
 #from sys import argv as sysargv
-import pkg_resources.py2_warn
+#import pkg_resources.py2_warn
 import numpy as np
 #import ErroresValidador2
 import os
