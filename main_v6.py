@@ -83,7 +83,6 @@ class External(QThread):
         #print(self.parent().list_descarga)
         # Descarga base de datos desde SQL
         df, result, self.parent().df_or =FunVal.DescargaUltSql(text_user,pass_sql,base_sql,table_sql,self, list_des = self.parent().list_descarga)
-        # Diego 19/07/2020
         #self.df = df
         #self.result = result
         self.result.emit(result)
