@@ -3,7 +3,6 @@ cachetools==4.1.1
 DateTime==4.3
 demjson==2.2.4
 imageio==2.6.0
-imagesize==1.1.0
 mysql==0.0.2
 mysql-connector==2.2.9
 mysqlclient==2.0.1
