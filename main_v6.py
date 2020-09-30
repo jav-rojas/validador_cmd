@@ -850,7 +850,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #CMD Icono
         self.setWindowIcon(QIcon(":/images/cmd.ico"))
 
-
     ########################################################################
     # Función para reajustar tamaño del widget
     ########################################################################  
