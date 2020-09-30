@@ -18,7 +18,6 @@ import numpy as np
 #import ErroresValidador2
 import os
 from warnings import filterwarnings
-#import resources
 import resources
         
 ########################################################################
