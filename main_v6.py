@@ -1734,17 +1734,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         numpersonas = str(numpersonas).replace(".0","")
         self.lineEdit_8.setText("{}".format(numpersonas))         
 
-    #=> DIego 23/03     
     def write_df_to_qtable(self,df,table,df_Errores):
         
+        print(df_Errores)
         if len(df_Errores)>0:
             df_Errores.loc[df_Errores['orden']=='hogar',['orden']] = -8
-            df_Errores.loc[df_Errores['orden']=='hog',['orden']] = -8            
-            tag_rows = df_Errores['orden'].astype(str).str.replace(".0", "").dropna().astype(int)-1
+            df_Errores.loc[df_Errores['orden']=='hog',['orden']] = -8
+            tag_rows = df_Errores['orden'].astype(str).str.replace("\.0", "").dropna().astype(int)-1
             tag_rows=tag_rows.to_list()  
-        
-            #print(tag_rows)
-        
+                
         # Reiniciamos los contadores
         self.threshold = df.shape[0]*df.shape[1]
         self.i = 0
