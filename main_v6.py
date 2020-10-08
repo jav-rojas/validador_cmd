@@ -2586,7 +2586,7 @@ class Ui_ControlOriginal(QDialog):
             self.df_ik_original = self.parent().df_or.loc[self.parent().df_or['interview__key'] == interview_key_original, :]
             # Actualizamos la fecha:
             self.df_ik_original['tipo_muestra'] = -9
-            self.df_ik_original['tipo_muestra'] = self.df_ik_original['tipo_muestra'].astype(str).str.replace(".0","").astype(int)                
+            self.df_ik_original['tipo_muestra'] = self.df_ik_original['tipo_muestra'].astype(str).str.replace("\.0","").astype(int)                
             #print(self.df_ik_original[['interview__key','tipo_muestra']])
             self.df_ik_original.loc[:,'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             #print(self.df_ik_original[['interview__key','act']])
@@ -2602,12 +2602,12 @@ class Ui_ControlOriginal(QDialog):
                 indexNames = self.parent().df[self.parent().df['interview__key'] == interview_key_original ].index
                 self.parent().df.drop(indexNames, inplace=True)
                 self.parent().df = self.parent().df.append(self.df_ik_original)
-                self.parent().df['tipo_muestra'] = self.parent().df['tipo_muestra'].astype(str).str.replace(".0","").astype(int)
+                self.parent().df['tipo_muestra'] = self.parent().df['tipo_muestra'].astype(str).str.replace("\.0","").astype(int)
                 
             # Para el IK de Control, lo buscamos en la base cargada:
             self.df_ik_control = self.parent().df.loc[self.parent().df['interview__key'] == interview_key_control, :]
             self.df_ik_control['tipo_muestra'] = 1
-            self.df_ik_control['tipo_muestra'] = self.df_ik_control['tipo_muestra'].astype(str).str.replace(".0","").astype(int)
+            self.df_ik_control['tipo_muestra'] = self.df_ik_control['tipo_muestra'].astype(str).str.replace("\.0","").astype(int)
             #print(self.df_ik_control[['interview__key','tipo_muestra']])
             self.df_ik_control.loc[:,'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             #print(self.df_ik_control[['interview__key','act']])
@@ -2620,7 +2620,7 @@ class Ui_ControlOriginal(QDialog):
                 indexNames = self.parent().df[self.parent().df['interview__key'] == interview_key_control ].index
                 self.parent().df.drop(indexNames, inplace=True)
                 self.parent().df = self.parent().df.append(self.df_ik_control)
-                self.parent().df['tipo_muestra'] = self.parent().df['tipo_muestra'].astype(str).str.replace(".0","").astype(int)
+                self.parent().df['tipo_muestra'] = self.parent().df['tipo_muestra'].astype(str).str.replace("\.0","").astype(int)
                 
             # Extra
             #print("Nueva base de control")
