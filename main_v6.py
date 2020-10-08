@@ -829,7 +829,7 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
-        self.statusbar.showMessage("Version 2 - 25 de Septiembre de 2020")
+        self.statusbar.showMessage("Version 2.1 - 8 de Octubre de 2020")
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
         self.retranslateUi(MainWindow)
