@@ -104,7 +104,7 @@ llaves_nuevos = '''42-82-96-81
 query = keys_parser().parse(controles_originales, query=True, db='EOD202009')
 data, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
 data = data.loc[:, ['interview__key', 'tipo_muestra']]
-data.to_csv(path.join('data', 'controles.csv'), index=False)
+data.to_csv(path.join('data', 'output', 'controles.csv'), index=False)
 
 ##################################################################################
 # Etapa 3: Obtención de hogares nuevos y originales
@@ -114,10 +114,10 @@ data.to_csv(path.join('data', 'controles.csv'), index=False)
 query = keys_parser().parse(llaves_originales, query=True, db='EOD202009')
 originales, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
 originales = originales.loc[:, ['interview__key', 'encuesta', 'idencuesta']]
-originales.to_csv(path.join('data', 'originales.csv'), index=False)
+originales.to_csv(path.join('data', 'output', 'originales.csv'), index=False)
 
 # Nuevos
 query = keys_parser().parse(llaves_nuevos, query=True, db='EOD202009')
 nuevos, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
 nuevos = nuevos.loc[:, ['interview__key', 'encuesta', 'idencuesta']]
-nuevos.to_csv(path.join('data', 'nuevos.csv'), index=False)
+nuevos.to_csv(path.join('data', 'output', 'nuevos.csv'), index=False)
