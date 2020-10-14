@@ -3,6 +3,6 @@ __pycache__/
 main_v6.spec
 /dist
 /build
-/desktop.ini
+desktop.ini
 /.vscode
 /val
