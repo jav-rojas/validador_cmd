@@ -59,14 +59,19 @@ class dl_sql(conn_sql):
 
 class keys_parser():
 
-    def parse(self, keys, query=False, db=None):
+    def parse(self, keys, query=False, query_type=None, args_sql=[None, None, None]):
         keys_list = keys.splitlines()
         for i in range(0, len(keys_list)):
             str_val = '{}'.format(keys_list[i])
             keys_list[i] = str_val
         if query:
-            str_keys = str(tuple(keys_list))
-            query = "SELECT * FROM {}.{} WHERE interview__key in {}".format(db, db, str_keys)
-            return query
+            if query_type == 'select':
+                str_keys = str(tuple(keys_list))
+                query = "SELECT * FROM {}.{} WHERE interview__key in {}".format(args_sql[0], args_sql[0], str_keys)
+                return query
+            if query_type == 'update':
+                str_keys = str(tuple(keys_list))
+                query = "UPDATE {}.{} SET {} = {} WHERE interview__key in {}".format(args_sql[0], args_sql[0], args_sql[1], args_sql[2], str_keys)
+                return query
         else:
             return keys_list
