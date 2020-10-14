@@ -24,7 +24,9 @@ sql.drop(['otro_codigo', 'just_rechazo', 'sex_rechazo', 'p15a_cod', 'p15b_cod', 
 
 # Base Validada
 sql.to_stata(path.join('data', 'output', 'BaseValidada.dta'), write_index=False, version=None)
+sql.to_excel(path.join('data', 'output', 'BaseValidada.xlsx'), index=False)
 
 # Base Validada Final
 sql = sql.loc[sql['tipo_muestra'].isin([1, 2])]
 sql.to_stata(path.join('data', 'output', 'BaseValidada_vf.dta'), write_index=False, version=None)
+sql.to_excel(path.join('data', 'output', 'BaseValidada_vf.xlsx'), index=False)
