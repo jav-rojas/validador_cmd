@@ -101,8 +101,8 @@ llaves_nuevos = '''42-82-96-81
 # Etapa 2: Obtención de controles y originales
 ##################################################################################
 
-query = keys_parser().parse(controles_originales, query=True, db='EOD202009')
-data, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
+query = keys_parser().parse(controles_originales, query=True, query_type='select', args_sql=[db])
+data, result = dl_sql(db=db).descarga(query=query, duplicates_level='interview__key')
 data = data.loc[:, ['interview__key', 'tipo_muestra']]
 data.to_csv(path.join('data', 'output', 'controles.csv'), index=False)
 
@@ -111,13 +111,13 @@ data.to_csv(path.join('data', 'output', 'controles.csv'), index=False)
 ##################################################################################
 
 # Originales
-query = keys_parser().parse(llaves_originales, query=True, db='EOD202009')
-originales, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
+query = keys_parser().parse(llaves_originales, query=True, query_type='select', args_sql=[db])
+originales, result = dl_sql(db=db).descarga(query=query, duplicates_level='interview__key')
 originales = originales.loc[:, ['interview__key', 'encuesta', 'idencuesta']]
 originales.to_csv(path.join('data', 'output', 'originales.csv'), index=False)
 
 # Nuevos
-query = keys_parser().parse(llaves_nuevos, query=True, db='EOD202009')
-nuevos, result = dl_sql(db='EOD202009').descarga(query=query, duplicates_level='interview__key')
+query = keys_parser().parse(llaves_nuevos, query=True, query_type='select', args_sql=[db])
+nuevos, result = dl_sql(db=db).descarga(query=query, duplicates_level='interview__key')
 nuevos = nuevos.loc[:, ['interview__key', 'encuesta', 'idencuesta']]
 nuevos.to_csv(path.join('data', 'output', 'nuevos.csv'), index=False)
