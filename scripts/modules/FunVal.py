@@ -55,7 +55,7 @@ def DescargaSql(text_user, pass_sql, base_sql, query):
 
         try:
             DataFull = pd.read_sql(query, con=sql_conn)
-        except as Exception:
+        except Exception:
             pass
 
         result = 'Completado'
@@ -77,10 +77,6 @@ def SqlAlchemyEngine(text_user, pass_sql, base_sql):
 
 def DescargaUltSql(text_user, pass_sql, base_sql, table_sql, self, list_des=""):
 
-    # base_sql  = "EOD202003"
-    # table_sql = "EOD202003"
-    # pass_sql= 'Datos_CMD2020'
-    # text_user = 'Datos2020'
     # query = 'SELECT * FROM EOD202003.EOD202003;'
     query = 'DROP TABLE IF EXISTS aux0;'
     DataFull, result = DescargaSql(text_user, pass_sql, base_sql, query)
@@ -113,7 +109,7 @@ def DescargaUltSql(text_user, pass_sql, base_sql, table_sql, self, list_des=""):
             query = 'SELECT {tabla1}.* FROM {tabla1} LEFT JOIN {tabla2} ON {tabla1}.interview__key={tabla2}.interview__key WHERE {tabla1}.act = {tabla2}.max_act AND {tabla1}.cuarto={s};'.format(tabla1=base_sql + '.' + table_sql, tabla2='aux0', s=List.iloc[i, 0])
             DataFull, result = DescargaSql(text_user, pass_sql, base_sql, query)
             # print(len(DataFull))
-            return self.progress.setValue(i)
+            # return self.progress.setValue(i)
 
         if i > 0:
             query = 'SELECT {tabla1}.* FROM {tabla1} LEFT JOIN {tabla2} ON {tabla1}.interview__key={tabla2}.interview__key WHERE {tabla1}.act = {tabla2}.max_act AND {tabla1}.cuarto={s};'.format(tabla1=base_sql + '.' + table_sql, tabla2='aux0', s=List.iloc[i, 0])
