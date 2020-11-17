@@ -1,11 +1,15 @@
 import pandas as pd
+import config
 from pymysql import connect, Error
 
+credentials = config.credentials()
+password = credentials.pass_sql
+user = credentials.text_user
 
 class conn_sql():
 
     # Constructor
-    def __init__(self, host='162.243.165.69', port=3306, user='Datos2020', passwd='Datos_CMD2020', db=None):
+    def __init__(self, host='162.243.165.69', port=3306, user=user, passwd=password, db=None):
         self.host = host
         self.port = port
         self.user = user
