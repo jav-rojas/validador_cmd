@@ -14,7 +14,8 @@ from imp import reload as impreload
 from sys import path as syspath
 from warnings import filterwarnings
 from scripts.modules import resources
-from scripts.modules import FunVal  # Modulo Funciones validador
+from scripts.modules import FunVal # Funciones Validador
+from scripts.modules import config # Credenciales
 
 ########################################################################
 # Inputs globales
@@ -24,8 +25,9 @@ global base_sql, table_sql, pass_sql, text_user
 filterwarnings("ignore")
 base_sql = "EOD202009"
 table_sql = "EOD202009"
-pass_sql = 'Datos_CMD2020'
-text_user = 'Datos2020'
+credentials = config.credentials()
+pass_sql = credentials.pass_sql
+text_user = credentials.text_user
 
 ########################################################################
 # Clase para threading
@@ -71,7 +73,7 @@ class External(QThread):
 
     try:
         shutilrmtree(f.name)
-    except as Exception:
+    except Exception:
         pass
 
     def run(self):
@@ -994,14 +996,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if state == Qt.Checked:
             try:
                 self.list_descarga.remove(1)
-            except as Exception:
+            except Exception as exception:
                 pass
             self.list_descarga = self.list_descarga + [1]
             # print(self.list_descarga)
         else:
             try:
                 self.list_descarga.remove(1)
-            except as Exception:
+            except Exception as exception:
                 pass
             # print(self.list_descarga)
 
@@ -1009,14 +1011,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if state == Qt.Checked:
             try:
                 self.list_descarga.remove(2)
-            except as Exception:
+            except Exception as exception:
                 pass
             self.list_descarga = self.list_descarga + [2]
             # print(self.list_descarga)
         else:
             try:
                 self.list_descarga.remove(2)
-            except as Exception:
+            except Exception as exception:
                 pass
             # print(self.list_descarga)
 
@@ -1024,14 +1026,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if state == Qt.Checked:
             try:
                 self.list_descarga.remove(-1)
-            except as Exception:
+            except Exception as exception:
                 pass
             self.list_descarga = self.list_descarga + [-1]
             # print(self.list_descarga)
         else:
             try:
                 self.list_descarga.remove(-1)
-            except as Exception:
+            except Exception as exception:
                 pass
             # print(self.list_descarga)
 
@@ -1039,14 +1041,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if state == Qt.Checked:
             try:
                 self.list_descarga.remove(4)
-            except as Exception:
+            except Exception as exception:
                 pass
             self.list_descarga = self.list_descarga + [4]
             # print(self.list_descarga)
         else:
             try:
                 self.list_descarga.remove(4)
-            except as Exception:
+            except Exception as exception:
                 pass
             # print(self.list_descarga)
 
@@ -1085,7 +1087,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if path.split(".")[-1] != "xlsx":
                 path_user = path + ".xlsx"
             # print(path_user)
-        except as Exception:
+        except Exception as exception:
             advertencia_directorio_reporte = QMessageBox()
             advertencia_directorio_reporte.setIcon(QMessageBox.Critical)
             advertencia_directorio_reporte.setText("Debe seleccionar un directorio para descargar el reporte seleccionado")
@@ -1509,7 +1511,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         correcto = 0
                     else:
                         correcto = 1
-                except as Exception:
+                except Exception as exception:
                     if self.df[item].dtype == object:
                         correcto = 1
                     else:
@@ -1592,7 +1594,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         try:
             shutilrmtree(f.name)
-        except as Exception:
+        except Exception as exception:
             pass
 
         if self.result == 'Completado':
@@ -1743,7 +1745,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # Opcion 1
                 try:
                     value = str('%.0f' % (self.df_array[row, col]))
-                except as Exception:
+                except Exception as exception:
                     value = str(self.df_array[row, col])
                 # Opcion 1
                 if value != "nan" and value != "none" and value != "":
