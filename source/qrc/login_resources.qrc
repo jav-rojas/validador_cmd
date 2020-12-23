@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="login">
+    <file alias="logo_cmd.png">../../images/logo_cmd.png</file>
+    <file alias="logo_cmd2.png">../../images/logo_cmd2.png</file>
+    <file alias="logo_cmd3.png">../../images/logo_cmd3.png</file>
+  </qresource>
+</RCC>
