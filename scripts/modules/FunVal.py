@@ -75,7 +75,7 @@ def SqlAlchemyEngine(text_user, pass_sql, base_sql):
     return engine
 
 
-def DescargaUltSql(text_user, pass_sql, base_sql, table_sql, self, list_des=""):
+def DescargaUltSql(self, text_user, pass_sql, base_sql, table_sql, list_des=""):
 
     # query = 'SELECT * FROM EOD202003.EOD202003;'
     query = 'DROP TABLE IF EXISTS aux0;'
@@ -125,5 +125,5 @@ def DescargaUltSql(text_user, pass_sql, base_sql, table_sql, self, list_des=""):
 
     if list_des != "":
         DataFull = DataFull.loc[DataFull['tipo_muestra'].isin(list_des)]
-
+    
     return DataFull, result, df_or
