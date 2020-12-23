@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from PyQt5.QtGui import QFont, QPixmap, QStandardItemModel, QStandardItem, QColor, QIcon
 from PyQt5.QtCore import Qt, pyqtSlot, QThread, pyqtSignal, QRect, QRegExp, QMetaObject, QEvent, QSignalMapper, QCoreApplication, QSize, QPoint, QSortFilterProxyModel
-from PyQt5.QtWidgets import QHBoxLayout, QDialogButtonBox, QRadioButton, QDialog, QFileDialog, QApplication, QMainWindow, QCheckBox, QWidget, QPushButton, QMessageBox, QTableWidgetItem, QLabel, QTabWidget, QProgressBar, QDesktopWidget, QSizePolicy, QGroupBox, QFormLayout, QGridLayout, QSpacerItem, QLineEdit, QTableWidget, QListWidget, QAction, QMenu, QComboBox, QMenuBar, QTableView, QStatusBar, QVBoxLayout, QTextEdit
+from PyQt5.QtWidgets import QHBoxLayout, QDialogButtonBox, QRadioButton, QDialog, QFileDialog, QApplication, QMainWindow, QCheckBox, QWidget, QPushButton, QMessageBox, QTableWidgetItem, QLabel, QTabWidget, QProgressBar, QDesktopWidget, QSizePolicy, QGroupBox, QFormLayout, QGridLayout, QSpacerItem, QLineEdit, QTableWidget, QListWidget, QAction, QMenu, QComboBox, QMenuBar, QTableView, QStatusBar, QVBoxLayout, QTextEdit, QFrame
 from datetime import datetime as datetime
 from pysftp import Connection as pysftpConnection
 from pysftp import CnOpts as pysftpCnOpts
@@ -13,9 +13,11 @@ from os.path import join as ospathjoin
 from imp import reload as impreload
 from sys import path as syspath
 from warnings import filterwarnings
+from scripts.modules import login_resources
 from scripts.modules import resources
 from scripts.modules import FunVal # Funciones Validador
 from scripts.modules import config # Credenciales
+from scripts.modules.sql import Usuarios
 
 ########################################################################
 # Inputs globales
@@ -23,8 +25,8 @@ from scripts.modules import config # Credenciales
 global base_sql, table_sql, pass_sql, text_user
 
 filterwarnings("ignore")
-base_sql = "EOD202009"
-table_sql = "EOD202009"
+base_sql = "EOD202012"
+table_sql = "EOD202012"
 credentials = config.credentials()
 pass_sql = credentials.pass_sql
 text_user = credentials.text_user
@@ -77,12 +79,8 @@ class External(QThread):
         pass
 
     def run(self):
-        # Diego 19/07/2020
-        # print(self.parent().list_descarga)
         # Descarga base de datos desde SQL
-        df, result, self.parent().df_or = FunVal.DescargaUltSql(text_user, pass_sql, base_sql, table_sql, self, list_des=self.parent().list_descarga)
-        # self.df = df
-        # self.result = result
+        df, result, self.parent().df_or = FunVal.DescargaUltSql(self, text_user, pass_sql, base_sql, table_sql, list_des=self.parent().list_descarga)
         self.result.emit(result)
         self.df.emit(df)
 
@@ -114,36 +112,31 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
         MainWindow.setSizePolicy(sizePolicy)
         MainWindow.setIconSize(QSize(19, 20))
+
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.setAttribute(Qt.WA_DeleteOnClose)
-
+        
         ########################################################################
         # Variables utilizadas en funciones
         ########################################################################
 
         # Dataframes
 
-        global df
+        # Dataframe auxiliar, para reporte
+        self.reporte = pd.DataFrame()
         # Dataframe principal
         self.df = pd.DataFrame()
-        # Resultado descarga
-        self.result = ""
-        # Avance progreso de la descarga
-        self.progreso = -1
         # Dataframe secundario, contiene solo el interview__key buscado)
         self.df2 = pd.DataFrame()
         # Dataframe auxiliar, utilizado para construir QTableWidget
         self.df3 = pd.DataFrame()
-        # Dataframe auxiliar, para reporte
-        self.reporte = pd.DataFrame()
-        # Dataframe que tiene base original
-        self.df_or = pd.DataFrame()
-
         # Variables
 
+        # Input editable desde recuadro de lista de errores para rev codificacion
+        self.RevCod1 = 0
         # Threshold
         self.threshold = 0
         # Indicador de sobrepaso de threshold para función oncellchanged
@@ -154,14 +147,15 @@ class Ui_MainWindow(object):
         self.EntraActualiza = 1
         # index para el filtro del texto
         self.indexcombobox = 0
-        # Input editable desde recuadro de lista de errores para rev codificacion
-        self.RevCod1 = 0
         # => DIego 23/06
         self.df_Errores = pd.DataFrame()
         # => DIego 23/06
 
+        # Username 
+        self.username = None
+
         # Diego 19/07/2020
-        self.list_descarga = [1]
+        self.list_descarga = [1, 4]
         # Diego 19/07/2020
 
         ########################################################################
@@ -399,164 +393,110 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
 
         ########################################################################
-        # Caja agrupadora y  sobre el main2_1
+        # Caja agrupadora y elementos
         ########################################################################
-
+        
         # Caja
         self.groupBox = QGroupBox(self.centralwidget)
-        self.groupBox.setGeometry(QRect(40 * factor, 0 * factor, 261 * factor, 81 * factor))
-        self.groupBox.setObjectName("groupBox")
-
-        # Form Layout
-        self.formLayoutWidget = QWidget(self.groupBox)
-        self.formLayoutWidget.setGeometry(QRect(10 * factor, 20 * factor, 241 * factor, 51 * factor))
-        self.formLayoutWidget.setObjectName("formLayoutWidget")
-        self.formLayout = QFormLayout(self.formLayoutWidget)
-        self.formLayout.setContentsMargins(0, 0, 0, 0)
-        self.formLayout.setObjectName("formLayout")
-
-        ########################################################################
-        # Caja agrupadora y layout 1
-        ########################################################################
-
-        # Caja
-        self.groupBox_2 = QGroupBox(self.centralwidget)
-        self.groupBox_2.setGeometry(QRect(340 * factor, 0 * factor, 820 * factor, 81 * factor))
-        self.groupBox_2.setObjectName("groupBox_2")
-
-        # Form Layout
-        self.gridLayoutWidget = QWidget(self.groupBox_2)
-        self.gridLayoutWidget.setGeometry(QRect(10 * factor, 20 * factor, 771 * factor, 50 * factor))
-        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
-        self.gridLayout = QGridLayout(self.gridLayoutWidget)
-        self.gridLayout.setContentsMargins(0, 0, 0, 0)
-        self.gridLayout.setObjectName("gridLayout")
-
-        # Spacers n°1
-        spacerItem = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 0, 9, 1, 1)
-        spacerItem1 = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem1, 2, 9, 1, 1)
-        self.lineEdit_3 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_3.setReadOnly(False)
-        self.lineEdit_3.setObjectName("lineEdit_3")
-        self.gridLayout.addWidget(self.lineEdit_3, 0, 6, 1, 1)
-        spacerItem2 = QSpacerItem(64 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem2, 0, 3, 1, 1)
-        spacerItem3 = QSpacerItem(64 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem3, 0, 7, 1, 1)
-        self.label_4 = QLabel(self.gridLayoutWidget)
-        self.label_4.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.label_4.setObjectName("label_4")
-        self.gridLayout.addWidget(self.label_4, 2, 4, 1, 1)
-        self.label_2 = QLabel(self.gridLayoutWidget)
-        self.label_2.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.label_2.setObjectName("label_2")
-        self.gridLayout.addWidget(self.label_2, 2, 0, 1, 1)
-        self.label_3 = QLabel(self.gridLayoutWidget)
-        self.label_3.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.label_3.setObjectName("label_3")
-        self.gridLayout.addWidget(self.label_3, 0, 4, 1, 1)
-        self.label_6 = QLabel(self.gridLayoutWidget)
-        self.label_6.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.label_6.setObjectName("label_6")
-        self.gridLayout.addWidget(self.label_6, 2, 8, 1, 1)
-        spacerItem4 = QSpacerItem(64 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem4, 2, 3, 1, 1)
-        spacerItem5 = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem5, 0, 1, 1, 1)
-        self.lineEdit_5 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_5.setReadOnly(True)
+        self.groupBox.setGeometry(QRect(40 * factor, 10 * factor, 1600 * factor, 61 * factor))
+        self.groupBox.setObjectName("interview_info")
+        
+        # Grid Layout en caja
+        self.widget_interview_info = QWidget(self.groupBox)
+        self.widget_interview_info.setGeometry(QRect(10 * factor, 20 * factor, 1580 * factor, 31 * factor))
+        self.widget_interview_info.setObjectName("widget_interview_info")
+        self.grid_interview_info = QGridLayout(self.widget_interview_info)
+        self.grid_interview_info.setContentsMargins(0, 0, 0, 0)
+        self.grid_interview_info.setObjectName("grid_interview_info")
+        
+        # Teléfono
+        self.lineEdit_5 = QLineEdit(self.widget_interview_info)
         self.lineEdit_5.setObjectName("lineEdit_5")
-        self.gridLayout.addWidget(self.lineEdit_5, 2, 6, 1, 1)
-        spacerItem6 = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem6, 0, 5, 1, 1)
-        spacerItem7 = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem7, 2, 1, 1, 1)
-        self.lineEdit_2 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_2.setReadOnly(False)
-        self.lineEdit_2.setObjectName("lineEdit_2")
-        self.gridLayout.addWidget(self.lineEdit_2, 0, 2, 1, 1)
-        self.lineEdit_4 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_4.setReadOnly(True)
+        self.lineEdit_5.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_5, 0, 14, 1, 1)
+        self.label_4 = QLabel(self.widget_interview_info)
+        self.label_4.setObjectName("label_4")
+        self.grid_interview_info.addWidget(self.label_4, 0, 13, 1, 1)
+
+        # Coordinador
+        self.lineEdit_4 = QLineEdit(self.widget_interview_info)
         self.lineEdit_4.setObjectName("lineEdit_4")
-        self.gridLayout.addWidget(self.lineEdit_4, 2, 2, 1, 1)
-        spacerItem8 = QSpacerItem(64 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem8, 2, 7, 1, 1)
-        spacerItem9 = QSpacerItem(10 * factor, 5 * factor, QSizePolicy.Maximum, QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem9, 2, 5, 1, 1)
-        self.label_1 = QLabel(self.gridLayoutWidget)
-        self.label_1.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
-        self.label_1.setObjectName("label_1")
-        self.gridLayout.addWidget(self.label_1, 0, 0, 1, 1)
-        self.lineEdit_7 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_7.setReadOnly(True)
+        self.lineEdit_4.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_4, 0, 12, 1, 1)
+        self.label_2 = QLabel(self.widget_interview_info)
+        self.label_2.setObjectName("label_2")
+        self.grid_interview_info.addWidget(self.label_2, 0, 11, 1, 1)
+
+        # Encuestador
+        self.lineEdit_7 = QLineEdit(self.widget_interview_info)
         self.lineEdit_7.setObjectName("lineEdit_7")
-        self.gridLayout.addWidget(self.lineEdit_7, 2, 10, 1, 1)
-        self.lineEdit_8 = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit_8.setReadOnly(True)
+        self.lineEdit_7.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_7, 0, 16, 1, 1)
+        self.label_6 = QLabel(self.widget_interview_info)
+        self.label_6.setObjectName("label_6")
+        self.grid_interview_info.addWidget(self.label_6, 0, 15, 1, 1)
+
+        # Segmento
+        self.lineEdit_2 = QLineEdit(self.widget_interview_info)
+        self.lineEdit_2.setObjectName("lineEdit_2")
+        self.lineEdit_2.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_2, 0, 6, 1, 1)
+        self.label_1 = QLabel(self.widget_interview_info)
+        self.label_1.setObjectName("label_1")
+        self.grid_interview_info.addWidget(self.label_1, 0, 5, 1, 1)
+
+        # Linea divisoria
+        self.line = QFrame(self.widget_interview_info)
+        self.line.setFrameShape(QFrame.VLine)
+        self.line.setFrameShadow(QFrame.Sunken)
+        self.line.setObjectName("line")
+        self.grid_interview_info.addWidget(self.line, 0, 3, 1, 1)
+
+        # Hogar
+        self.lineEdit_3 = QLineEdit(self.widget_interview_info)
+        self.lineEdit_3.setObjectName("lineEdit_3")
+        self.lineEdit_3.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_3, 0, 8, 1, 1)
+        self.label_3 = QLabel(self.widget_interview_info)
+        self.label_3.setObjectName("label_3")
+        self.grid_interview_info.addWidget(self.label_3, 0, 7, 1, 1)
+        
+        # N° Personas Hogar
+        self.lineEdit_8 = QLineEdit(self.widget_interview_info)
         self.lineEdit_8.setObjectName("lineEdit_8")
-        self.gridLayout.addWidget(self.lineEdit_8, 0, 10, 1, 1)
-        self.label_8 = QLabel(self.gridLayoutWidget)
-        self.label_8.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
+        self.lineEdit_8.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.lineEdit_8, 0, 10, 1, 1)
+        self.label_8 = QLabel(self.widget_interview_info)
         self.label_8.setObjectName("label_8")
-        self.gridLayout.addWidget(self.label_8, 0, 8, 1, 1)
+        self.grid_interview_info.addWidget(self.label_8, 0, 9, 1, 1)
+
+        # Spacers        
+        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.grid_interview_info.addItem(spacerItem, 0, 4, 1, 1)
+        spacerItem1 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.grid_interview_info.addItem(spacerItem1, 0, 2, 1, 1)
 
         ########################################################################
-        # Conectar
-        ########################################################################
-
-        # Boton para Conectar
-
-        self.conectar = QPushButton(self.formLayoutWidget)
-        self.conectar.setGeometry(QRect(10 * factor, 5 * factor, 75 * factor, 25 * factor))
-        self.conectar.setObjectName("conectar")
-        self.conectar.setFont(QFont("Arial", int(9 * factor)))
-        self.conectar.clicked.connect(self.ConectarSQL)  # => Aquí se define Funión para conectar
-
-        # Posición (0,0) del layout
-        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.conectar)
-
-        ########################################################################
-        # Boton de progreso descarga
-        ########################################################################
-
-        self.progress = QProgressBar(self.formLayoutWidget)
-        self.progress.setObjectName("progressBar")
-        self.progress.setGeometry(10 * factor, 33 * factor, 250 * factor, 20 * factor)
-        self.progress.setMaximum(100)
-        self.progress.hide()
-
-        # Posición (0,1) del layout
-        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.progress)
-
-        ########################################################################
-        # Buscar interview-key
+        # Buscar Interview Key
         ########################################################################
 
         # Boton para buscar
 
-        self.cargar = QPushButton(self.formLayoutWidget)
-        self.cargar.setGeometry(QRect(10 * factor, 55 * factor, 75 * factor, 25 * factor))
+        self.cargar = QPushButton(self.widget_interview_info)
         self.cargar.setObjectName("cargar")
-        self.cargar.setFont(QFont("Arial", int(9 * factor)))
+        self.cargar.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.cargar, 0, 0, 1, 1)
         self.cargar.clicked.connect(self.loadData)
         self.cargar.setEnabled(False)
+
         # self.cargar.clicked.connect(self.UpdateErrorsKey)
         # self.cargar.clicked.connect(self.UpdateComentariosKey)
 
-        # Posición (1,0) del layout
-        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.cargar)
-
-        # Recuadro texto para ingresar key-interview para buscar
-
-        self.Buscar_Key = QLineEdit(self.formLayoutWidget)
-        self.Buscar_Key.setGeometry(QRect(90 * factor, 55 * factor, 150 * factor, 25 * factor))
+        self.Buscar_Key = QLineEdit(self.widget_interview_info)
         self.Buscar_Key.setObjectName("Buscar_Key")
+        self.Buscar_Key.setStyleSheet("font: 13px;")
+        self.grid_interview_info.addWidget(self.Buscar_Key, 0, 1, 1, 1)
         self.Buscar_Key.setPlaceholderText("Ingresar Key")
-
-        # Posición (1,1) del layout
-        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.Buscar_Key)
 
         ########################################################################
         # Lista errores
@@ -586,7 +526,7 @@ class Ui_MainWindow(object):
         # => DIego 23/06
 
         # Botón actualiza errores
-        self.UpdateErrors = QPushButton(self.gridLayoutWidget)
+        self.UpdateErrors = QPushButton(self.gridLayoutWidget_3)
         self.UpdateErrors.setObjectName("UpdateErrors")
         self.UpdateErrors.setObjectName("Actualizar")
         self.UpdateErrors.setFont(QFont("Arial", int(9 * factor)))
@@ -614,83 +554,6 @@ class Ui_MainWindow(object):
         self.layout_comentarios.addWidget(self.viewComentarios, 0, 0, 1, 2)
         self.viewComentarios.verticalHeader().setVisible(False)
         self.errores_comentarios.addTab(self.tab_comentarios, "")
-
-        # Recuadro para activar codificacion
-        self.group_errorescod = QGroupBox(self.centralwidget)
-        self.group_errorescod.setGeometry(QRect(1200 * factor, 0, 131 * factor, 81 * factor))
-        self.group_errorescod.setObjectName("group_errorescod")
-        self.grid_errorescod = QWidget(self.group_errorescod)
-        self.grid_errorescod.setGeometry(QRect(10 * factor, 20 * factor, 111 * factor, 51 * factor))
-        self.grid_errorescod.setObjectName("grid_errorescod")
-        self.layout_errorescod = QGridLayout(self.grid_errorescod)
-        self.layout_errorescod.setContentsMargins(0, 0, 0, 0)
-        self.layout_errorescod.setObjectName("layout_errorescod")
-        self.ErrorCod = QCheckBox(self.grid_errorescod)
-        self.ErrorCod.setMaximumSize(QSize(16, 16777215))
-        self.ErrorCod.setText("")
-        self.ErrorCod.setObjectName("ErrorCod")
-        self.layout_errorescod.addWidget(self.ErrorCod, 0, 0, 1, 1)
-        self.label_errorescod = QLabel(self.grid_errorescod)
-        self.label_errorescod.setObjectName("label_errorescod")
-        self.layout_errorescod.addWidget(self.label_errorescod, 0, 1, 1, 1)
-
-        self.ErrorCod.stateChanged.connect(self.clickBox)
-
-        # Recuadro para activar codificacion
-
-        self.descarga_encuestas = QGroupBox(self.centralwidget)
-        self.descarga_encuestas.setGeometry(QRect(1340 * factor, 0, 201 * factor, 81 * factor))
-        self.descarga_encuestas.setObjectName("descarga_encuestas")
-        self.layout_or_sh = QWidget(self.descarga_encuestas)
-        self.layout_or_sh.setGeometry(QRect(10 * factor, 20 * factor, 93 * factor, 51 * factor))
-        self.layout_or_sh.setObjectName("layout_or_sh")
-        self.grid_or_sh = QGridLayout(self.layout_or_sh)
-        self.grid_or_sh.setContentsMargins(0, 0, 0, 0)
-        self.grid_or_sh.setObjectName("grid_or_sh")
-        self.segundohogar = QLabel(self.layout_or_sh)
-        self.segundohogar.setObjectName("segundohogar")
-        self.grid_or_sh.addWidget(self.segundohogar, 1, 1, 1, 1)
-        self.down_sh = QCheckBox(self.layout_or_sh)
-        self.down_sh.setMaximumSize(QSize(20 * factor, 16777215 * factor))
-        self.down_sh.setText("")
-        self.down_sh.setObjectName("down_sh")
-        self.grid_or_sh.addWidget(self.down_sh, 1, 0, 1, 1)
-        self.down_or = QCheckBox(self.layout_or_sh)
-        self.down_or.setMaximumSize(QSize(20 * factor, 16777215 * factor))
-        self.down_or.setText("")
-        self.down_or.setObjectName("down_or")
-        self.grid_or_sh.addWidget(self.down_or, 0, 0, 1, 1)
-        self.originales = QLabel(self.layout_or_sh)
-        self.originales.setObjectName("originales")
-        self.grid_or_sh.addWidget(self.originales, 0, 1, 1, 1)
-        self.layout_pr_ct = QWidget(self.descarga_encuestas)
-        self.layout_pr_ct.setGeometry(QRect(120 * factor, 20 * factor, 91 * factor, 51 * factor))
-        self.layout_pr_ct.setObjectName("layout_pr_ct")
-        self.grid_pr_ct = QGridLayout(self.layout_pr_ct)
-        self.grid_pr_ct.setContentsMargins(0, 0, 0, 0)
-        self.grid_pr_ct.setObjectName("grid_pr_ct")
-        self.controles = QLabel(self.layout_pr_ct)
-        self.controles.setObjectName("controles")
-        self.grid_pr_ct.addWidget(self.controles, 1, 1, 1, 1)
-        self.down_ct = QCheckBox(self.layout_pr_ct)
-        self.down_ct.setMaximumSize(QSize(20 * factor, 16777215 * factor))
-        self.down_ct.setText("")
-        self.down_ct.setObjectName("down_ct")
-        self.grid_pr_ct.addWidget(self.down_ct, 1, 0, 1, 1)
-        self.down_pr = QCheckBox(self.layout_pr_ct)
-        self.down_pr.setMaximumSize(QSize(20 * factor, 16777215 * factor))
-        self.down_pr.setText("")
-        self.down_pr.setIconSize(QSize(10 * factor, 10 * factor))
-        self.down_pr.setObjectName("down_pr")
-        self.grid_pr_ct.addWidget(self.down_pr, 0, 0, 1, 1)
-        self.pruebas = QLabel(self.layout_pr_ct)
-        self.pruebas.setObjectName("pruebas")
-        self.grid_pr_ct.addWidget(self.pruebas, 0, 1, 1, 1)
-        self.down_or.setChecked(True)
-        self.down_or.stateChanged.connect(self.clickBox_or)
-        self.down_sh.stateChanged.connect(self.clickBox_sh)
-        self.down_pr.stateChanged.connect(self.clickBox_pr)
-        self.down_ct.stateChanged.connect(self.clickBox_ct)
 
         ########################################################################
         # Lista Encuestas por validar
@@ -812,6 +675,7 @@ class Ui_MainWindow(object):
         self.vertical_layout_reemplazar.addWidget(self.boton_reemplazar)
         self.layout_reemplazar.addWidget(self.groupbox_reemplazar, 0, 1, 1, 1)
         self.boton_segundo_hogar.clicked.connect(self.rellena_segundo_hogar)
+        self.boton_segundo_hogar.setEnabled(False)
         self.boton_reemplazar.clicked.connect(self.reemplaza_original_control)
 
         ########################################################################
@@ -845,6 +709,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # CMD Icono
         self.setWindowIcon(QIcon(":/images/cmd.ico"))
 
+        # Inicia login
+        self.login = Ui_Login(self)
+        self.login.show()
+        #self.show()
+
     ########################################################################
     # Función para reajustar tamaño del widget
     ########################################################################
@@ -859,11 +728,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.listError.setGeometry(QRect(1200 * factor, 120 * factor, 350 * factor + (self.width() - 1600 * factor), 250 * factor))
             self.UpdateErrors.setGeometry(QRect(1475 * factor + (self.width() - 1600 * factor), 375 * factor, 75 * factor, 30 * factor))
 
-            self.grid_errorescod.setGeometry(QRect(10 * factor, 20 * factor, 111 * factor + (self.width() - 1600 * factor), 51 * factor))
-            self.layout_or_sh.setGeometry(QRect(10 * factor, 20 * factor, 93 * factor + (self.width() - 1600 * factor), 51 * factor))
-            self.group_errorescod.setGeometry(QRect(1200 * factor, 0, 151 * factor, 81 * factor))
-            self.descarga_encuestas.setGeometry(QRect(1360 * factor, 0, 221 * factor, 81 * factor))
-
             self.errores_comentarios.setGeometry(QRect(1200 * factor, 100 * factor, 347 * factor + (self.width() - 1600 * factor), 301 * factor))
             self.gridLayoutWidget_3.setGeometry(QRect(0, 0, 339 * factor + (self.width() - 1600 * factor), 271 * factor))
             self.gridLayoutWidget_2.setGeometry(QRect(0, 0, 339 * factor + (self.width() - 1600 * factor), 271 * factor))
@@ -876,7 +740,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.verticalLayoutWidget_11.setGeometry(QRect(60 * factor, 30 * factor, 211 * factor + (self.width() - 1600 * factor), 31 * factor))
             self.gridLayoutWidget_7.setGeometry(QRect(10 * factor, 90 * factor, 321 * factor + (self.width() - 1600 * factor), 71 * factor))
             self.gridLayoutWidget_11.setGeometry(QRect(10 * factor, 170 * factor, 321 * factor + (self.width() - 1600 * factor), 71 * factor))
-
+            if self.username == 'admin':
+                self.gridLayoutWidget_8.setGeometry(QRect(10 * factor, 250 * factor, 321 * factor + (self.width() - 1600 * factor), 181 * factor))
+                self.gridLayoutWidget_9.setGeometry(QRect(60 * factor, 30 * factor, 211 * factor + (self.width() - 1600 * factor), 71 * factor))
+    
     ########################################################################
     # Traducción Botones
     ########################################################################
@@ -884,28 +751,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def retranslateUi(self, MainWindow):
         _translate = QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Validador EOD - CMD"))
-        self.conectar.setText(_translate("MainWindow", "Conectar"))
         self.cargar.setText(_translate("MainWindow", "Buscar"))
         self.UpdateValidar.setText(_translate("MainWindow", "Actualizar"))
         self.UpdateErrors.setText(_translate("MainWindow", "Actualizar"))
         self.guardar.setText(_translate("MainWindow", "Guardar"))
-        self.groupBox.setTitle(_translate("MainWindow", "Conexion y Búsqueda"))
-        self.groupBox_2.setTitle(_translate("MainWindow", "Información de Encuesta"))
+        self.groupBox.setTitle(_translate("MainWindow", "Información de Encuesta"))
         self.label_4.setText(_translate("MainWindow", "Teléfono:"))
         self.label_2.setText(_translate("MainWindow", "Coordinador:"))
         self.label_3.setText(_translate("MainWindow", "Hogar:"))
         self.label_6.setText(_translate("MainWindow", "Encuestador:"))
         self.label_8.setText(_translate("MainWindow", "N° Personas Hogar:"))
         self.label_1.setText(_translate("MainWindow", "Segmento:"))
-        self.ErrorCod.setText(_translate("MainWindow", "Activar errores de codificación"))
-        # Diego 19/07/2020
-        self.down_or.setText(_translate("MainWindow", "Descargar originales"))
-        self.down_sh.setText(_translate("MainWindow", "Descargar Seg. Hogar"))
-        self.down_pr.setText(_translate("MainWindow", "Descargar pruebas"))
-        self.down_ct.setText(_translate("MainWindow", "Descargar controles"))
-        self.group_errorescod.setTitle(_translate("MainWindow", "Opciones"))
-        # Diego 19/07/2020
-        self.descarga_encuestas.setTitle(_translate("MainWindow", "Descargar"))
         self.errores_comentarios.setTabText(self.errores_comentarios.indexOf(self.tab_errores), _translate("MainWindow", "Errores en Encuesta"))
         self.agregar_comentario.setText(_translate("MainWindow", "Agregar Comentario"))
         self.errores_comentarios.setTabText(self.errores_comentarios.indexOf(self.tab_comentarios), _translate("MainWindow", "Comentarios"))
@@ -915,45 +771,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.groupBox_4.setTitle(_translate("MainWindow", "Descargar reporte de estado de encuestas"))
         self.agregar_comentario_2.setText(_translate("MainWindow", "Descargar"))
         self.errores_comentarios_2.setTabText(self.errores_comentarios_2.indexOf(self.tab_comentarios_2), _translate("MainWindow", "Herramientas"))
-        self.label_errorescod.setText(_translate(
-            "MainWindow", "<html></head><body>\n"
-            "<p style=\"line-height:90;\"><span>\n"
-            "Activar errores<br>\n"
-            "de codificación\n"
-            "</span>\n"
-            "</p>\n"
-            "</body>\n"
-            "</html>"))
-        self.segundohogar.setText(_translate(
-            "MainWindow", "<html></head><body>\n"
-            "<p style=\"line-height:90;\"><span>\n"
-            "Seg. Hogar\n"
-            "</span>\n"
-            "</p>\n"
-            "</body>\n"
-            "</html>"))
-        self.originales.setText(_translate(
-            "MainWindow", "<html></head><body>\n"
-            "<p style=\"line-height:90;\"><span>\n"
-            "Originales</span>\n"
-            "</p>\n"
-            "</body>\n"
-            "</html>"))
-        self.controles.setText(_translate(
-            "MainWindow", "<html></head><body>\n"
-            "<p style=\"line-height:90;\"><span>\n"
-            "Controles\n"
-            "</span>\n"
-            "</p>\n"
-            "</body>\n"
-            "</html>"))
-        self.pruebas.setText(_translate(
-            "MainWindow", "<html></head><body>\n"
-            "<p style=\"line-height:90;\"><span>\n"
-            "Pruebas</span>\n"
-            "</p>\n"
-            "</body>\n"
-            "</html>"))
         self.groupbox_segundo_hogar.setTitle(_translate("MainWindow", "Rellenar Identificación de Segundo Hogar"))
         self.boton_segundo_hogar.setText(_translate("MainWindow", "Rellenar"))
         self.groupbox_reemplazar.setTitle(_translate("MainWindow", "Reemplazar Encuesta Original por Control"))
@@ -975,83 +792,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.reemplazar_controloriginal = Ui_ControlOriginal(self)
         self.reemplazar_controloriginal.show()
 
-    #########################################################################
-    # Función para actualizar estado de input revisar codificación
-    #########################################################################
-
-    def clickBox(self, state):
-
-        if state == Qt.Checked:
-            self.RevCod1 = 1
-            # print("El codigo en clickbox es "+str(self.RevCod1))
-        else:
-            self.RevCod1 = 0
-            # print("El codigo en clickbox es "+str(self.RevCod1))
-
-    #########################################################################
-    # Función para marcar encuestas a descargar
-    #########################################################################
-
-    def clickBox_or(self, state):
-        if state == Qt.Checked:
-            try:
-                self.list_descarga.remove(1)
-            except Exception as exception:
-                pass
-            self.list_descarga = self.list_descarga + [1]
-            # print(self.list_descarga)
-        else:
-            try:
-                self.list_descarga.remove(1)
-            except Exception as exception:
-                pass
-            # print(self.list_descarga)
-
-    def clickBox_sh(self, state):
-        if state == Qt.Checked:
-            try:
-                self.list_descarga.remove(2)
-            except Exception as exception:
-                pass
-            self.list_descarga = self.list_descarga + [2]
-            # print(self.list_descarga)
-        else:
-            try:
-                self.list_descarga.remove(2)
-            except Exception as exception:
-                pass
-            # print(self.list_descarga)
-
-    def clickBox_pr(self, state):
-        if state == Qt.Checked:
-            try:
-                self.list_descarga.remove(-1)
-            except Exception as exception:
-                pass
-            self.list_descarga = self.list_descarga + [-1]
-            # print(self.list_descarga)
-        else:
-            try:
-                self.list_descarga.remove(-1)
-            except Exception as exception:
-                pass
-            # print(self.list_descarga)
-
-    def clickBox_ct(self, state):
-        if state == Qt.Checked:
-            try:
-                self.list_descarga.remove(4)
-            except Exception as exception:
-                pass
-            self.list_descarga = self.list_descarga + [4]
-            # print(self.list_descarga)
-        else:
-            try:
-                self.list_descarga.remove(4)
-            except Exception as exception:
-                pass
-            # print(self.list_descarga)
-
     ############################################################################
     # Habilita botones al conectar
     ############################################################################
@@ -1069,8 +809,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def guardar_reporte(self):
         # Seleccionamos variables
-        # query = 'SELECT {} FROM EOD202009.EOD202009'.format(var)
-        query = 'SELECT * FROM EOD202009.EOD202009'
+        query = f'SELECT * FROM {base_sql}.{table_sql}'
         # Descargamos la base para el reporte
         self.reporte, result = FunVal.DescargaSql(text_user, pass_sql, base_sql, query)
 
@@ -1095,15 +834,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if path_user is not None:
             self.reporte = self.reporte.sort_values(by=['act']).drop_duplicates(subset=['interview__key', 'orden'], keep='last')
-            df_Errores = External(self).UpdListError2(self.reporte, rev_cod=self.RevCod1, key=None)
+            self.df_Errores = External(self).UpdListError2(self.reporte, rev_cod=self.RevCod1, key=None)
             # df_Errores.to_excel("C:\\Users\\Javie\\Downloads\\df_Errores.xlsx")
             # self.df.to_csv("C:\\Users\\usuario\\Downloads\\df.csv")
 
             # df_Errores = pd.read_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
             # df = pd.read_csv("C:\\Users\\usuario\\Downloads\\df.csv")
-            le = df_Errores['interview__key'].drop_duplicates()
+            self.le = self.df_Errores['interview__key'].drop_duplicates()
 
-            self.reporte = self.reporte.merge(le, on='interview__key', indicator='exists', how='outer')
+            self.reporte = self.reporte.merge(self.le, on='interview__key', indicator='exists', how='outer')
             self.reporte = self.reporte.loc[self.reporte.exists != "right_only", :]
             # self.reporte.loc[(self.reporte._merge!="both"),['estado']] =   0 # Encuestas que no pegaron, no tienen errores entonces: 1) Silenciar mantener historial cambios, 2) Descomentar para reinicar
             self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 0), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
@@ -1119,6 +858,107 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.reporte.loc[self.reporte['estado'] == 2, 'estado'] = "Validada"
             self.reporte.loc[self.reporte['estado'] == 3, 'estado'] = "Validación forzada"
             self.reporte.to_excel(os.path.join(path), index=False)
+
+    def sql_to_excel(self):
+        # Seleccionamos variables
+        query = f'SELECT * FROM {base_sql}.{table_sql}'
+        # Descargamos la base para el reporte
+        self.reporte, result = FunVal.DescargaSql(text_user, pass_sql, base_sql, query)
+
+        # Generamos el cuadro de diálogo para guardar archivos
+        path = App().saveFileDialog()
+
+        global path_user
+        path_user = ""
+        # print(path)
+
+        # Creamos la ruta correcta sin duplicar extensión del archivo
+        try:
+            path_user = path
+            if path.split(".")[-1] != "xlsx":
+                path_user = path + ".xlsx"
+            # print(path_user)
+        except Exception as exception:
+            advertencia_directorio_reporte = QMessageBox()
+            advertencia_directorio_reporte.setIcon(QMessageBox.Critical)
+            advertencia_directorio_reporte.setText("Debe seleccionar un directorio para descargar el reporte seleccionado")
+            advertencia_directorio_reporte.setWindowTitle("Error de directorio")
+
+        if path_user is not None:
+            self.reporte = self.reporte.sort_values(by=['act']).drop_duplicates(subset=['interview__key', 'orden'], keep='last')
+            self.df_Errores = External(self).UpdListError2(self.reporte, rev_cod=self.RevCod1, key=None)
+            # df_Errores.to_excel("C:\\Users\\Javie\\Downloads\\df_Errores.xlsx")
+            # self.df.to_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+
+            # df_Errores = pd.read_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
+            # df = pd.read_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+            self.le = self.df_Errores['interview__key'].drop_duplicates()
+            self.reporte = self.reporte.merge(self.le, on='interview__key', indicator='exists', how='outer')
+            self.reporte = self.reporte.loc[self.reporte.exists != "right_only", :]
+            # self.reporte.loc[(self.reporte._merge!="both"),['estado']] =   0 # Encuestas que no pegaron, no tienen errores entonces: 1) Silenciar mantener historial cambios, 2) Descomentar para reinicar
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 0), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 1), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 2), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 3), ['estado']] = 3  # Encuestas que  pegaron forzadas,  dejarlas forzadas
+            self.reporte = self.reporte.drop(['exists'], axis=1)
+            # self.reporte.drop(columns = ['interview__key'], axis = 1, inplace = True)
+            self.reporte.loc[self.reporte['estado'] == 0, 'estado'] = "Sin validar (correcta)"
+            self.reporte.loc[self.reporte['estado'] == 1, 'estado'] = "Sin validar (con errores)"
+            self.reporte.loc[self.reporte['estado'] == 2, 'estado'] = "Validada"
+            self.reporte.loc[self.reporte['estado'] == 3, 'estado'] = "Validación forzada"
+            self.reporte.to_excel(os.path.join(path), index=False)
+
+    def sql_to_stata(self):
+
+        # Seleccionamos variables
+        query = f'SELECT * FROM {base_sql}.{table_sql}'
+        # Descargamos la base para el reporte
+        self.reporte, result = FunVal.DescargaSql(text_user, pass_sql, base_sql, query)
+
+        # Generamos el cuadro de diálogo para guardar archivos
+        path = App().saveFileDialog()
+
+        global path_user
+        path_user = ""
+        # print(path)
+
+        # Creamos la ruta correcta sin duplicar extensión del archivo
+        try:
+            path_user = path
+            if path.split(".")[-1] != "dta":
+                path_user = path + ".dta"
+            # print(path_user)
+        except Exception as exception:
+            advertencia_directorio_reporte = QMessageBox()
+            advertencia_directorio_reporte.setIcon(QMessageBox.Critical)
+            advertencia_directorio_reporte.setText("Debe seleccionar un directorio para descargar el reporte seleccionado")
+            advertencia_directorio_reporte.setWindowTitle("Error de directorio")
+
+        if path_user is not None:
+            self.reporte = self.reporte.sort_values(by=['act']).drop_duplicates(subset=['interview__key', 'orden'], keep='last')
+            self.df_Errores = External(self).UpdListError2(self.reporte, rev_cod=self.RevCod1, key=None)
+            # df_Errores.to_excel("C:\\Users\\Javie\\Downloads\\df_Errores.xlsx")
+            # self.df.to_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+
+            # df_Errores = pd.read_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
+            # df = pd.read_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+            self.le = self.df_Errores['interview__key'].drop_duplicates()
+
+            self.reporte = self.reporte.merge(self.le, on='interview__key', indicator='exists', how='outer')
+            self.reporte = self.reporte.loc[self.reporte.exists != "right_only", :]
+            # self.reporte.loc[(self.reporte._merge!="both"),['estado']] =   0 # Encuestas que no pegaron, no tienen errores entonces: 1) Silenciar mantener historial cambios, 2) Descomentar para reinicar
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 0), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 1), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 2), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.reporte.loc[(self.reporte.exists == "both") & (self.reporte.estado == 3), ['estado']] = 3  # Encuestas que  pegaron forzadas,  dejarlas forzadas
+            self.reporte = self.reporte.drop(['exists'], axis=1)
+            # self.reporte.drop(columns = ['interview__key'], axis = 1, inplace = True)
+            self.reporte.loc[self.reporte['estado'] == 0, 'estado'] = "Sin validar (correcta)"
+            self.reporte.loc[self.reporte['estado'] == 1, 'estado'] = "Sin validar (con errores)"
+            self.reporte.loc[self.reporte['estado'] == 2, 'estado'] = "Validada"
+            self.reporte.loc[self.reporte['estado'] == 3, 'estado'] = "Validación forzada"
+            self.reporte.to_stata(os.path.join(path), write_index=False, version=118)
+
 
     ############################################################################
     # Funciones para cambio de hoja
@@ -1184,7 +1024,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableWidget.setSizePolicy(sizePolicy)
             self.tableWidget.setMinimumSize(QSize(0, 250 * factor))
             self.tableWidget.setRowCount(0)  # Numero de columna debería quedar en función del numero de personas
-            self.tableWidget.setColumnCount(13)  # Varia por hoja
+            self.tableWidget.setColumnCount(17)  # Varia por hoja
             self.tableWidget.setObjectName("tabla")  # nombre de la tabla
             self.tableWidget.setFont(QFont("Arial", int(9)))
             self.tableWidget.setColumnWidth(0, 114 * factor)
@@ -1194,12 +1034,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableWidget.setColumnWidth(4, 48 * factor)
             self.tableWidget.setColumnWidth(5, 48 * factor)
             self.tableWidget.setColumnWidth(6, 95 * factor)
-            self.tableWidget.setColumnWidth(7, 95 * factor)
-            self.tableWidget.setColumnWidth(8, 95 * factor)
-            self.tableWidget.setColumnWidth(9, 105 * factor)
+            self.tableWidget.setColumnWidth(7, 35 * factor)
+            self.tableWidget.setColumnWidth(8, 35 * factor)
+            self.tableWidget.setColumnWidth(9, 35 * factor)
             self.tableWidget.setColumnWidth(10, 105 * factor)
-            self.tableWidget.setColumnWidth(11, 125 * factor)
-            self.tableWidget.setColumnWidth(12, 114 * factor)
+            self.tableWidget.setColumnWidth(11, 35 * factor)
+            self.tableWidget.setColumnWidth(12, 35 * factor)
+            self.tableWidget.setColumnWidth(13, 35 * factor)
+            self.tableWidget.setColumnWidth(14, 105 * factor)
+            self.tableWidget.setColumnWidth(15, 90 * factor)
+            self.tableWidget.setColumnWidth(16, 90 * factor)
             self.tableWidget.cellChanged.connect(self.onCellChanged)
             self.tableWidget.horizontalHeader().setFont(QFont("Arial", int(9), QFont.Bold))
             self.tableWidget.verticalHeader().setVisible(False)
@@ -1207,7 +1051,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableWidget.show()
 
             if self.df2.empty is False:
-                self.df3 = self.df2.loc[:, ['nombre', 'p6e0', 'p6e', 'p6f', 'p6g', 'p6g1', 'p6g1_esp', 'p6h', 'p6h_esp', 'p6i', 'p6i_esp', 'p7', 'oficio']]
+                self.df3 = self.df2.loc[:, ['nombre', 'p6e0', 'p6e', 'p6f', 'p6g', 'p6g1', 'p6g1_esp', 'p6h', 'p6h1', 'p6h2', 'p6h_esp', 'p6i', 'p6i1', 'p6i2', 'p6i_esp', 'p7', 'oficio']]
 
                 # Takes a df and writes it to a qtable provided. df headers become qtable headers
 
@@ -1266,22 +1110,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableWidget.setSizePolicy(sizePolicy)
             self.tableWidget.setMinimumSize(QSize(0, 250 * factor))
             self.tableWidget.setRowCount(0)  # Numero de columna debería quedar en función del numero de personas
-            self.tableWidget.setColumnCount(13)  # Varia por hoja
+            self.tableWidget.setColumnCount(14)  # Varia por hoja
             self.tableWidget.setObjectName("tabla")  # nombre de la tabla
             self.tableWidget.setFont(QFont("Arial", int(9)))
             self.tableWidget.setColumnWidth(0, 114 * factor)
             self.tableWidget.setColumnWidth(1, 114 * factor)
             self.tableWidget.setColumnWidth(2, 57 * factor)
             self.tableWidget.setColumnWidth(3, 57 * factor)
-            self.tableWidget.setColumnWidth(4, 134 * factor)
-            self.tableWidget.setColumnWidth(5, 125 * factor)
-            self.tableWidget.setColumnWidth(6, 67 * factor)
+            self.tableWidget.setColumnWidth(4, 70 * factor)
+            self.tableWidget.setColumnWidth(5, 70 * factor)
+            self.tableWidget.setColumnWidth(6, 125 * factor)
             self.tableWidget.setColumnWidth(7, 67 * factor)
-            self.tableWidget.setColumnWidth(8, 48 * factor)
-            self.tableWidget.setColumnWidth(9, 114 * factor)
-            self.tableWidget.setColumnWidth(10, 77 * factor)
+            self.tableWidget.setColumnWidth(8, 67 * factor)
+            self.tableWidget.setColumnWidth(9, 48 * factor)
+            self.tableWidget.setColumnWidth(10, 114 * factor)
             self.tableWidget.setColumnWidth(11, 77 * factor)
             self.tableWidget.setColumnWidth(12, 77 * factor)
+            self.tableWidget.setColumnWidth(13, 77 * factor)
             self.tableWidget.cellChanged.connect(self.onCellChanged)
             self.tableWidget.horizontalHeader().setFont(QFont("Arial", int(9), QFont.Bold))
             self.tableWidget.verticalHeader().setVisible(False)
@@ -1291,7 +1136,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.df2.empty is False:
                 # Javier - 06-06-2020
                 self.df3 = self.df2.loc[:, [
-                    'nombre', 'p11b_esp', 'p11b_tab', 'p11b_cod', 'esfuer', 'ntrab2', 'acttrabm', 'acttraba', 'contrato',
+                    'nombre', 'p11b_esp', 'p11b_tab', 'p11b_cod', 'esfuer', 'p11d', 'ntrab2', 'acttrabm', 'acttraba', 'contrato',
                     'relcon', 'varw', 'varw2', 'varw4']]
 
                 # Takes a df and writes it to a qtable provided. df headers become qtable headers
@@ -1532,6 +1377,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # Se actualiza la fecha a partir de la modificación
                 self.df2.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.df2.loc[:, 'edit_nom'] = self.username
+
                 # print(self.df2.loc[:,['{}'.format(item),'act']])
 
             if correcto == 0:
@@ -1562,100 +1409,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             pass
 
-    ########################################################################
-    # Funcion para conectar
-    ########################################################################
-
-    def onCountChanged(self, value):
-
-        self.progreso = value
-        self.progress.setValue(value)
-        if value == 100:
-            self.progress.hide()
-            self.progreso = -1
-
-    def RecResult(self, value):
-        self.result = value
-
-    def Recdf(self, value):
-        self.df = value
-
-        # Pasa variables numericas a formato float (así normaliza tratamiento)
-
-        for column in self.df:
-            if self.df[column].dtype == "int64":
-                # print(column)
-                self.df[column] = self.df[column].astype('float64')
-
-        f = tempfileTemporaryDirectory()
-        # print(4)
-        self.df.to_csv(ospathjoin(f.name, "df.csv"), index=False)
-        self.df = pd.read_csv(ospathjoin(f.name, "df.csv"))
-
-        try:
-            shutilrmtree(f.name)
-        except Exception as exception:
-            pass
-
-        if self.result == 'Completado':
-
-            # Actualiza estado de errores
-
-            self.ErrorCod.setEnabled(False)
-
-            df_Errores = External(self).UpdListError2(self.df, rev_cod=self.RevCod1, key=None)
-
-            # print("El código en recdf es" + str(self.RevCod1))
-            # df_Errores.to_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
-            # self.df.to_csv("C:\\Users\\usuario\\Downloads\\df.csv")
-
-            # df_Errores = pd.read_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
-            # df = pd.read_csv("C:\\Users\\usuario\\Downloads\\df.csv")
-            le = df_Errores['interview__key'].drop_duplicates()
-
-            self.df = self.df.merge(le, on='interview__key', indicator='exists', how='outer')
-            self.df = self.df.loc[self.df.exists != "right_only", :]
-            # self.df.loc[(self.df._merge!="both"),['estado']] =   0 # Encuestas que no pegaron, no tienen errores entonces: 1) Silenciar mantener historial cambios, 2) Descomentar para reinicar
-            self.df.loc[(self.df.exists == "both") & (self.df.estado == 0), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
-            self.df.loc[(self.df.exists == "both") & (self.df.estado == 1), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
-            self.df.loc[(self.df.exists == "both") & (self.df.estado == 2), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
-            self.df.loc[(self.df.exists == "both") & (self.df.estado == 3), ['estado']] = 3  # Encuestas que  pegaron forzadas,  dejarlas forzadas
-            self.df = self.df.drop(['exists'], axis=1)
-
-            # Numero de observaciones
-            n_DataFull = self.df['interview__key'].nunique()
-            # Numero errores
-            n_ErrorValidar = self.df.loc[self.df.estado == 1, 'interview__key'].nunique()
-            # print(n_ErrorValidar)
-            MensajeConexion = "Conexión Exitosa, {x} registros unicos y {y} registros por validar".format(x=n_DataFull, y=n_ErrorValidar)
-
-        if self.result != 'Completado':
-            MensajeConexion = self.result
-
-        # Mensaje de resultado
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Information)
-        msgBox.setText(MensajeConexion)
-        msgBox.setWindowTitle("Conexión")
-        msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.exec()
-
-        self.habilita_botones()
-
     def ConectarSQL(self):
-
-        # 1) Carga texto del recuadro que registra usuario
-        if self.progreso == -1:
-            self.progreso = 0
-            self.progress.show()
-            self.progress.setValue(0)
-
-            self.calc = External(self)
-            self.calc.countChanged.connect(self.onCountChanged)
-            self.calc.start()
-
-            self.calc.result.connect(self.RecResult)
-            self.calc.df.connect(self.Recdf)
+        self.login = Ui_Login(self)
+        self.login.show()
 
     ########################################################################
     # Funcion para cargar datos
@@ -1786,22 +1542,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # 2) Encuentra errores en la key
 
-                df_Errores = External(self).UpdListError2(self.df2, rev_cod=self.RevCod1, key=self.key)
-                self.df_Errores = df_Errores
+                self.df_Errores = External(self).UpdListError2(self.df2, rev_cod=self.RevCod1, key=self.key)
+                
                 # print("El codigo en UpdateErrorsKey es" + str(self.RevCod1))
                 # self.df2.to_csv("C:\\Users\\usuario\\Downloads\\df2.csv")
 
                 self.df_Errores['orden'] = self.df_Errores['orden'].astype(str).str[:-2]
-                self.df_Errores.loc[df_Errores['orden'] == 'hog', ['orden']] = 'hogar'
+                self.df_Errores.loc[self.df_Errores['orden'] == 'hog', ['orden']] = 'hogar'
                 variables = ['orden', 'error', 'tipo']
-                # ariables = ['interview__key', 'orden', 'error','tipo']
-                df_Errores = df_Errores.loc[:, variables]
+                # Variables = ['interview__key', 'orden', 'error','tipo']
+                self.df_Errores = self.df_Errores.loc[:, variables]
                 # print(df_Errores)
                 # => Genera objeto para mostrar datos a mostrar
                 self.modelErrores = QStandardItemModel(self)
                 # => Itera sobre base para mostrar objeto
-                for row in range(len(df_Errores)):
-                    item = [QStandardItem(str(df_Errores.iloc[row, col])) for col in range(len(variables))]
+                for row in range(len(self.df_Errores)):
+                    item = [QStandardItem(str(self.df_Errores.iloc[row, col])) for col in range(len(variables))]
                     for x in item:
                         x.setEditable(False)  # => Para que recuadros no sean editables
                         x.setFont(QFont("Arial", int(10 * factor)))  # => Para ajustar letra
@@ -1917,7 +1673,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ventana_agregar_comentario.show()
 
     ########################################################################
-    # Funcion para actulizar Encuestas
+    # Funcion para actualizar Encuestas
     ########################################################################
 
     def UpdateErrorsEncuesta(self):
@@ -1996,6 +1752,55 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             event.accept()
         else:
             event.ignore()
+
+    ########################################################################
+    # Función para descarga de Base Validada (solo admin)
+    ########################################################################
+
+    def admin_features(self):
+        self.gridLayoutWidget_8 = QWidget(self.tab_comentarios_2)
+        self.gridLayoutWidget_8.setGeometry(QRect(10, 250, 321, 181))
+        self.gridLayoutWidget_8.setObjectName("gridLayoutWidget_8")
+        self.grid_BaseValidada = QGridLayout(self.gridLayoutWidget_8)
+        self.grid_BaseValidada.setContentsMargins(0, 0, 0, 0)
+        self.grid_BaseValidada.setObjectName("grid_BaseValidada")
+        spacerItem2 = QSpacerItem(20, 15, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.grid_BaseValidada.addItem(spacerItem2, 0, 1, 1, 1)
+        spacerItem3 = QSpacerItem(10, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.grid_BaseValidada.addItem(spacerItem3, 2, 0, 1, 1)
+        self.line_BaseValidada = QFrame(self.gridLayoutWidget_8)
+        self.line_BaseValidada.setFrameShape(QFrame.HLine)
+        self.line_BaseValidada.setFrameShadow(QFrame.Sunken)
+        self.line_BaseValidada.setObjectName("line_BaseValidada")
+        self.grid_BaseValidada.addWidget(self.line_BaseValidada, 2, 1, 1, 1)
+        spacerItem4 = QSpacerItem(20, 15, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.grid_BaseValidada.addItem(spacerItem4, 3, 1, 1, 1)
+        spacerItem5 = QSpacerItem(10, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.grid_BaseValidada.addItem(spacerItem5, 2, 2, 1, 1)
+        self.groupBox_BaseValidada = QGroupBox(self.gridLayoutWidget_8)
+        self.groupBox_BaseValidada.setObjectName("groupBox_BaseValidada")
+        self.gridLayoutWidget_9 = QWidget(self.groupBox_BaseValidada)
+        self.gridLayoutWidget_9.setGeometry(QRect(60, 30, 211, 71))
+        self.gridLayoutWidget_9.setObjectName("gridLayoutWidget_9")
+        self.grid_BaseValidada_inner = QGridLayout(self.gridLayoutWidget_9)
+        self.grid_BaseValidada_inner.setContentsMargins(0, 0, 0, 0)
+        self.grid_BaseValidada_inner.setObjectName("grid_BaseValidada_inner")
+        self.BaseValidada_excel = QPushButton(self.gridLayoutWidget_9)
+        self.BaseValidada_excel.setObjectName("BaseValidada_excel")
+        self.grid_BaseValidada_inner.addWidget(self.BaseValidada_excel, 0, 0, 1, 1)
+        self.BaseValidada_stata = QPushButton(self.gridLayoutWidget_9)
+        self.BaseValidada_stata.setObjectName("BaseValidada_stata")
+        self.grid_BaseValidada_inner.addWidget(self.BaseValidada_stata, 1, 0, 1, 1)
+        self.grid_BaseValidada.addWidget(self.groupBox_BaseValidada, 4, 0, 1, 3)
+        _translate = QCoreApplication.translate
+        self.groupBox_BaseValidada.setTitle(_translate("MainWindow", "Descarga de Base Validada"))
+        self.BaseValidada_excel.setText(_translate("MainWindow", "Descargar (Excel/XLSX)"))
+        self.BaseValidada_stata.setText(_translate("MainWindow", "Descargar (Stata/DTA)"))
+
+        # Conecta botones a función:
+        self.BaseValidada_excel.clicked.connect(self.sql_to_excel)
+        self.BaseValidada_stata.clicked.connect(self.sql_to_stata)
+        self.BaseValidada_stata.setEnabled(False)
 
 ########################################################################
 # Clase de cuadro de diálogo para archivos
@@ -2133,9 +1938,10 @@ class Ui_Dialog(QDialog):
             self.parent().UpdateComentariosKey()
             self.parent().df2.loc[:, 'estado'] = self.estado_guardar
             self.parent().df2.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.parent().df2.loc[:, 'edit_nom'] = self.parent().username
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
             # print(self.parent().df2)
-            self.parent().df2.to_sql('EOD202009', con=engine, if_exists='append', chunksize=10, index=False)
+            self.parent().df2.to_sql(f'{table_sql}', con=engine, if_exists='append', chunksize=10, index=False)
             # print("Actualizado correctamente en SQL")
             interview__key = self.parent().df2.interview__key[0]
             indexNames = self.parent().df[self.parent().df['interview__key'] == interview__key].index
@@ -2425,15 +2231,17 @@ class Ui_SegHog(QDialog):
 
         # Para el IK de Segundo Hogar, primero lo buscamos en la base de observaciones con tipo de muestra == 2
         self.df_ik_seghog = self.parent().df.loc[self.parent().df['interview__key'] == interview_key_segundohogar, :]
-        # Actualizamos la fecha:
+        # Actualizamos la fecha y el usuario:
         self.df_ik_seghog.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.df_ik_seghog.loc[:, 'edit_nom'] = self.parent().username
+
         # print(self.df_ik_seghog[['interview__key','act']])
         # Hacemos los cambios en el SQL:
 
         # Agregar cuadro de dialogo para confirmar si desea guardar cambios
 
         engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
-        self.df_ik_seghog.to_sql('EOD202009', con=engine, if_exists='append', chunksize=10, index=False)
+        self.df_ik_seghog.to_sql(f'{table_sql}', con=engine, if_exists='append', chunksize=10, index=False)
         print("Actualizado correctamente en SQL")
         QMessageBox.information(self, 'Guardado exitosamente', 'La información fue guardada correctamente', QMessageBox.Ok, QMessageBox.Ok)
 
@@ -2587,10 +2395,11 @@ class Ui_ControlOriginal(QDialog):
             self.df_ik_original['tipo_muestra'] = self.df_ik_original['tipo_muestra'].astype(str).str.replace("\.0", "").astype(int)
             # print(self.df_ik_original[['interview__key','tipo_muestra']])
             self.df_ik_original.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.df_ik_original.loc[:, 'edit_nom'] = self.parent().username
             # print(self.df_ik_original[['interview__key','act']])
             # Hacemos los cambios en el SQL:
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
-            self.df_ik_original.to_sql('EOD202009', con=engine, if_exists='append', chunksize=10, index=False)
+            self.df_ik_original.to_sql(f'{table_sql}', con=engine, if_exists='append', chunksize=10, index=False)
             # print("Actualizado correctamente en SQL")
 
             # Lista de interview__key en base principal
@@ -2608,10 +2417,11 @@ class Ui_ControlOriginal(QDialog):
             self.df_ik_control['tipo_muestra'] = self.df_ik_control['tipo_muestra'].astype(str).str.replace("\.0", "").astype(int)
             # print(self.df_ik_control[['interview__key','tipo_muestra']])
             self.df_ik_control.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.df_ik_control.loc[:, 'edit_nom'] = self.parent().username
             # print(self.df_ik_control[['interview__key','act']])
             # Hacemos los cambios en el SQL:
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
-            self.df_ik_control.to_sql('EOD202009', con=engine, if_exists='append', chunksize=10, index=False)
+            self.df_ik_control.to_sql(f'{table_sql}', con=engine, if_exists='append', chunksize=10, index=False)
             # print("Actualizado correctamente en SQL")
 
             if interview_key_control in lista_ik:
@@ -2633,10 +2443,617 @@ class Ui_ControlOriginal(QDialog):
             QMessageBox.warning(self, 'No se ha podido guardar', 'La información no ha podido ser guardada correctamente. Recuerde tener una conexión activa de internet al momento de guardar.', QMessageBox.Ok, QMessageBox.Ok)
             self.close()
 
+########################################################################
+# Clase para login
+#######################################################################
+
+
+class Ui_Login(QDialog):
+
+    def __init__(self, parent=None):
+        super(Ui_Login, self).__init__(parent)
+        self.setupUi(self)
+        
+    def setupUi(self, Dialog):
+        Dialog.setObjectName("Dialog")
+        Dialog.resize(391, 421)
+        Dialog.move(800*factor,100*factor)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
+        Dialog.setSizePolicy(sizePolicy)
+        Dialog.setMouseTracking(False)
+        Dialog.setTabletTracking(False)
+        Dialog.setAcceptDrops(False)
+        Dialog.setStyleSheet(
+            "background-color: rgb(255, 255, 255);\n"
+            "selection-color: rgb(255, 85, 255);\n"
+            "selection-background-color: rgb(255, 0, 0);\n"
+            "border-color: rgb(85, 255, 0);\n"
+            "alternate-background-color: rgb(85, 255, 255);\n"
+            "border-left-color: rgb(0, 85, 255);"
+            )
+        Dialog.setSizeGripEnabled(False)
+        Dialog.setModal(False)
+        self.gridLayoutWidget_2 = QWidget(Dialog)
+        self.gridLayoutWidget_2.setGeometry(QRect(10, 10, 371, 391))
+        self.gridLayoutWidget_2.setObjectName("gridLayoutWidget_2")
+        self.gridLayout_6 = QGridLayout(self.gridLayoutWidget_2)
+        self.gridLayout_6.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout_6.setObjectName("gridLayout_6")
+        self.verticalLayout = QVBoxLayout()
+        self.verticalLayout.setObjectName("verticalLayout")
+        spacerItem = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.verticalLayout.addItem(spacerItem)
+        self.label_3 = QLabel(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
+        self.label_3.setSizePolicy(sizePolicy)
+        self.label_3.setLayoutDirection(Qt.LeftToRight)
+        self.label_3.setFrameShape(QFrame.NoFrame)
+        self.label_3.setFrameShadow(QFrame.Plain)
+        self.label_3.setTextFormat(Qt.RichText)
+        self.label_3.setScaledContents(False)
+        self.label_3.setAlignment(Qt.AlignCenter)
+        self.label_3.setObjectName("label_3")
+        self.verticalLayout.addWidget(self.label_3)
+        self.gridLayout_7 = QGridLayout()
+        self.gridLayout_7.setObjectName("gridLayout_7")
+        self.line_2 = QFrame(self.gridLayoutWidget_2)
+        self.line_2.setFrameShape(QFrame.HLine)
+        self.line_2.setFrameShadow(QFrame.Sunken)
+        self.line_2.setObjectName("line_2")
+        self.gridLayout_7.addWidget(self.line_2, 1, 1, 1, 1)
+        spacerItem1 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.gridLayout_7.addItem(spacerItem1, 3, 1, 1, 1)
+        spacerItem2 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem2, 1, 0, 1, 1)
+        spacerItem3 = QSpacerItem(20, 25, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.gridLayout_7.addItem(spacerItem3, 0, 1, 1, 1)
+        spacerItem4 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem4, 4, 2, 1, 1)
+        self.label_4 = QLabel(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicy)
+        self.label_4.setObjectName("label_4")
+        self.gridLayout_7.addWidget(self.label_4, 2, 1, 1, 1)
+        spacerItem5 = QSpacerItem(50, 5, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem5, 1, 2, 1, 1)
+        spacerItem6 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem6, 4, 0, 1, 1)
+        self.gridLayout_8 = QGridLayout()
+        self.gridLayout_8.setObjectName("gridLayout_8")
+        self.formLayout_3 = QFormLayout()
+        self.formLayout_3.setObjectName("formLayout_3")
+        self.usuarioLabel_2 = QLabel(self.gridLayoutWidget_2)
+        self.usuarioLabel_2.setObjectName("usuarioLabel_2")
+        self.formLayout_3.setWidget(0, QFormLayout.LabelRole, self.usuarioLabel_2)
+        self.usuarioLineEdit_2 = QLineEdit(self.gridLayoutWidget_2)
+        self.usuarioLineEdit_2.setObjectName("usuarioLineEdit_2")
+        self.formLayout_3.setWidget(0, QFormLayout.FieldRole, self.usuarioLineEdit_2)
+        self.contraseALabel_2 = QLabel(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.contraseALabel_2.sizePolicy().hasHeightForWidth())
+        self.contraseALabel_2.setSizePolicy(sizePolicy)
+        self.contraseALabel_2.setObjectName("contraseALabel_2")
+        self.formLayout_3.setWidget(1, QFormLayout.LabelRole, self.contraseALabel_2)
+        self.contraseALineEdit_2 = QLineEdit(self.gridLayoutWidget_2)
+        self.contraseALineEdit_2.setEchoMode(QLineEdit.Password)
+        self.contraseALineEdit_2.setObjectName("contraseALineEdit_2")
+        self.formLayout_3.setWidget(1, QFormLayout.FieldRole, self.contraseALineEdit_2)
+        self.gridLayout_8.addLayout(self.formLayout_3, 0, 1, 1, 1)
+        self.gridLayout_7.addLayout(self.gridLayout_8, 4, 1, 1, 1)
+        spacerItem7 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem7, 3, 2, 1, 1)
+        spacerItem8 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem8, 3, 0, 1, 1)
+        spacerItem9 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem9, 0, 2, 1, 1)
+        spacerItem10 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_7.addItem(spacerItem10, 0, 0, 1, 1)
+        self.verticalLayout.addLayout(self.gridLayout_7)
+        self.gridLayout_6.addLayout(self.verticalLayout, 0, 0, 1, 1)
+        self.gridLayout_10 = QGridLayout()
+        self.gridLayout_10.setObjectName("gridLayout_10")
+        self.pushButton_2 = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_2.setCheckable(False)
+        self.pushButton_2.setAutoRepeat(False)
+        self.pushButton_2.setAutoExclusive(False)
+        self.pushButton_2.setAutoDefault(False)
+        self.pushButton_2.setDefault(True)
+        self.pushButton_2.setFlat(False)
+        self.pushButton_2.setObjectName("pushButton_2")
+        self.gridLayout_10.addWidget(self.pushButton_2, 1, 1, 1, 1)
+        spacerItem11 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.gridLayout_10.addItem(spacerItem11, 1, 2, 1, 1)
+        spacerItem12 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.gridLayout_10.addItem(spacerItem12, 1, 0, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_10, 2, 0, 1, 1)
+        self.gridLayout_9 = QGridLayout()
+        self.gridLayout_9.setObjectName("gridLayout_9")
+        self.line_4 = QFrame(self.gridLayoutWidget_2)
+        self.line_4.setFrameShape(QFrame.HLine)
+        self.line_4.setFrameShadow(QFrame.Sunken)
+        self.line_4.setObjectName("line_4")
+        self.gridLayout_9.addWidget(self.line_4, 0, 1, 1, 1)
+        spacerItem13 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_9.addItem(spacerItem13, 0, 2, 1, 1)
+        spacerItem14 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_9.addItem(spacerItem14, 0, 0, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_9, 1, 0, 1, 1)
+        
+        # Lista de descarga
+        self.list_descarga = [1]
+        # Click para conectar a método login
+        self.pushButton_2.clicked.connect(self.login)
+        # Avance progreso de la descarga
+        self.progreso = -1
+        # Resultado descarga
+        self.result = ""
+
+        # Dataframe que tiene base original
+        self.df_or = pd.DataFrame()
+        self.retranslateUi(Dialog)
+        QMetaObject.connectSlotsByName(Dialog)
+
+    def retranslateUi(self, Dialog):
+        _translate = QCoreApplication.translate
+        Dialog.setWindowTitle(_translate("Dialog", "Ingreso Validador CMD"))
+        self.label_3.setText(_translate("Dialog", "<html><head/><body><p><img src=\":/login/logo_cmd3.png\"/></p></body></html>"))
+        self.label_4.setText(_translate("Dialog", "<html><head/><body><p align=\"center\"><span style=\" font-size:12pt; font-weight:600;\">Ingreso Validador CMD</span></p></body></html>"))
+        self.usuarioLabel_2.setText(_translate("Dialog", "Usuario:"))
+        self.contraseALabel_2.setText(_translate("Dialog", "Contraseña:"))
+        self.pushButton_2.setText(_translate("Dialog", "Ingresar"))
+
+    def success_login(self):
+        self.resize(391, 641)
+        self.gridLayoutWidget_2.setGeometry(QRect(10, 10, 371, 611))
+
+        self.pushButton_2.deleteLater()
+
+        # Layout Activar Errores de Codificación + Etiqueta de "Inicia sesión como..."
+        self.gridLayout_12 = QGridLayout()
+        self.gridLayout_12.setObjectName("gridLayout_12")
+        spacerItem29 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem29, 2, 2, 1, 1)
+        spacerItem30 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem30, 2, 0, 1, 1)
+        spacerItem31 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem31, 0, 2, 1, 1)
+        self.label_9 = QLabel(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_9.sizePolicy().hasHeightForWidth())
+        self.label_9.setSizePolicy(sizePolicy)
+        self.label_9.setAlignment(Qt.AlignCenter)
+        self.label_9.setObjectName("label_9")
+        self.gridLayout_12.addWidget(self.label_9, 0, 1, 1, 1)
+        spacerItem32 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem32, 0, 0, 1, 1)
+        spacerItem33 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.gridLayout_12.addItem(spacerItem33, 1, 1, 1, 1)
+        self.groupBox = QGroupBox(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groupBox.sizePolicy().hasHeightForWidth())
+        self.groupBox.setSizePolicy(sizePolicy)
+        self.groupBox.setMinimumSize(QSize(0, 52))
+        self.groupBox.setObjectName("groupBox")
+        self.gridLayoutWidget = QWidget(self.groupBox)
+        self.gridLayoutWidget.setGeometry(QRect(20, 20, 231, 21))
+        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
+        self.gridLayout = QGridLayout(self.gridLayoutWidget)
+        self.gridLayout.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout.setObjectName("gridLayout")
+        self.checkBox = QCheckBox(self.gridLayoutWidget)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checkBox.sizePolicy().hasHeightForWidth())
+        self.checkBox.setSizePolicy(sizePolicy)
+        self.checkBox.setText("")
+        self.checkBox.setObjectName("checkBox")
+        self.gridLayout.addWidget(self.checkBox, 0, 0, 1, 1)
+        self.label = QLabel(self.gridLayoutWidget)
+        self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 1, 1, 1)
+        self.gridLayout_12.addWidget(self.groupBox, 2, 1, 1, 1)
+        spacerItem34 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem34, 1, 2, 1, 1)
+        spacerItem35 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem35, 1, 0, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_12, 3, 0, 1, 1)
+
+        self.checkBox.stateChanged.connect(self.clickBox)
+
+        # Layout Opciones de descarga
+        self.gridLayout_13 = QGridLayout()
+        self.gridLayout_13.setObjectName("gridLayout_13")
+        spacerItem19 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem19, 2, 2, 1, 1)
+        spacerItem20 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem20, 1, 2, 1, 1)
+        spacerItem21 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem21, 2, 0, 1, 1)
+        spacerItem22 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.gridLayout_13.addItem(spacerItem22, 0, 1, 1, 1)
+        spacerItem23 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.gridLayout_13.addItem(spacerItem23, 2, 1, 1, 1)
+        spacerItem24 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem24, 0, 0, 1, 1)
+        spacerItem25 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem25, 1, 0, 1, 1)
+        self.groupBox_2 = QGroupBox(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groupBox_2.sizePolicy().hasHeightForWidth())
+        self.groupBox_2.setSizePolicy(sizePolicy)
+        self.groupBox_2.setMinimumSize(QSize(0, 72))
+        self.groupBox_2.setObjectName("groupBox_2")
+        self.gridLayoutWidget_3 = QWidget(self.groupBox_2)
+        self.gridLayoutWidget_3.setGeometry(QRect(20, 20, 231, 43))
+        self.gridLayoutWidget_3.setObjectName("gridLayoutWidget_3")
+        self.gridLayout_2 = QGridLayout(self.gridLayoutWidget_3)
+        self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout_2.setObjectName("gridLayout_2")
+        self.label_2 = QLabel(self.gridLayoutWidget_3)
+        self.label_2.setObjectName("label_2")
+        self.gridLayout_2.addWidget(self.label_2, 0, 1, 1, 1)
+        self.checkBox_4 = QCheckBox(self.gridLayoutWidget_3)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checkBox_4.sizePolicy().hasHeightForWidth())
+        self.checkBox_4.setSizePolicy(sizePolicy)
+        self.checkBox_4.setMaximumSize(QSize(16777215, 16777215))
+        self.checkBox_4.setText("")
+        self.checkBox_4.setObjectName("checkBox_4")
+        self.gridLayout_2.addWidget(self.checkBox_4, 1, 2, 1, 1)
+        self.label_7 = QLabel(self.gridLayoutWidget_3)
+        self.label_7.setObjectName("label_7")
+        self.gridLayout_2.addWidget(self.label_7, 1, 3, 1, 1)
+        self.checkBox_5 = QCheckBox(self.gridLayoutWidget_3)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checkBox_5.sizePolicy().hasHeightForWidth())
+        self.checkBox_5.setSizePolicy(sizePolicy)
+        self.checkBox_5.setMaximumSize(QSize(16777215, 16777215))
+        self.checkBox_5.setText("")
+        self.checkBox_5.setObjectName("checkBox_5")
+        self.gridLayout_2.addWidget(self.checkBox_5, 1, 0, 1, 1)
+        self.label_6 = QLabel(self.gridLayoutWidget_3)
+        self.label_6.setObjectName("label_6")
+        self.gridLayout_2.addWidget(self.label_6, 1, 1, 1, 1)
+        self.label_5 = QLabel(self.gridLayoutWidget_3)
+        self.label_5.setObjectName("label_5")
+        self.gridLayout_2.addWidget(self.label_5, 0, 3, 1, 1)
+        self.checkBox_3 = QCheckBox(self.gridLayoutWidget_3)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checkBox_3.sizePolicy().hasHeightForWidth())
+        self.checkBox_3.setSizePolicy(sizePolicy)
+        self.checkBox_3.setMaximumSize(QSize(16777215, 16777215))
+        self.checkBox_3.setText("")
+        self.checkBox_3.setObjectName("checkBox_3")
+        self.gridLayout_2.addWidget(self.checkBox_3, 0, 2, 1, 1)
+        self.checkBox_2 = QCheckBox(self.gridLayoutWidget_3)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.checkBox_2.sizePolicy().hasHeightForWidth())
+        self.checkBox_2.setSizePolicy(sizePolicy)
+        self.checkBox_2.setMinimumSize(QSize(0, 0))
+        self.checkBox_2.setMaximumSize(QSize(16777215, 16777215))
+        self.checkBox_2.setText("")
+        self.checkBox_2.setObjectName("checkBox_2")
+        self.gridLayout_2.addWidget(self.checkBox_2, 0, 0, 1, 1)
+        self.gridLayout_13.addWidget(self.groupBox_2, 1, 1, 1, 1)
+        spacerItem26 = QSpacerItem(50, 10, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_13.addItem(spacerItem26, 0, 2, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_13, 4, 0, 1, 1)
+
+        self.checkBox_2.setChecked(True)
+        self.checkBox_2.stateChanged.connect(self.clickBox_or)
+        self.checkBox_5.stateChanged.connect(self.clickBox_sh)
+        self.checkBox_3.stateChanged.connect(self.clickBox_pr)
+        self.checkBox_4.stateChanged.connect(self.clickBox_ct)
+
+        # Layout botón "Descargar"
+        self.gridLayout_15 = QGridLayout()
+        self.gridLayout_15.setObjectName("gridLayout_15")
+        self.pushButton_4 = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_4.setFocusPolicy(Qt.WheelFocus)
+        self.pushButton_4.setContextMenuPolicy(Qt.DefaultContextMenu)
+        self.pushButton_4.setAcceptDrops(False)
+        self.pushButton_4.setLayoutDirection(Qt.LeftToRight)
+        self.pushButton_4.setAutoFillBackground(False)
+        self.pushButton_4.setStyleSheet("border-bottom-color: rgb(255, 255, 255);")
+        self.pushButton_4.setCheckable(False)
+        self.pushButton_4.setAutoRepeat(False)
+        self.pushButton_4.setAutoExclusive(False)
+        self.pushButton_4.setAutoDefault(False)
+        self.pushButton_4.setDefault(True)
+        self.pushButton_4.setFlat(False)
+        self.pushButton_4.setObjectName("pushButton_4")
+        self.gridLayout_15.addWidget(self.pushButton_4, 1, 1, 1, 1)
+        spacerItem27 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.gridLayout_15.addItem(spacerItem27, 1, 2, 1, 1)
+        spacerItem28 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.gridLayout_15.addItem(spacerItem28, 1, 0, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_15, 5, 0, 1, 1)
+
+        self.pushButton_4.clicked.connect(self.descarga)
+
+        # Translate
+        _translate = QCoreApplication.translate
+        self.label_9.setText(_translate("Dialog", f"<html><head/><body><p>Has iniciado sesión como <span style=' font-weight:600;'>{self.parent().username}</span></p></body></html>"))
+        self.groupBox.setTitle(_translate("Dialog", "Opciones"))
+        self.label.setText(_translate("Dialog", "Errores de codificación"))
+        self.groupBox_2.setTitle(_translate("Dialog", "Descarga"))
+        self.label_2.setText(_translate("Dialog", "Originales"))
+        self.label_7.setText(_translate("Dialog", "Controles"))
+        self.label_6.setText(_translate("Dialog", "Segundo Hogar"))
+        self.label_5.setText(_translate("Dialog", "Pruebas"))
+        self.pushButton_4.setText(_translate("Dialog", "Descargar"))
+
+    def download_initiated(self):
+        self.resize(391, 671)
+        self.gridLayoutWidget_2.setGeometry(QRect(10, 10, 371, 631))
+
+        # Layout barra de progreso de descarga
+        self.gridLayout_11 = QGridLayout()
+        self.gridLayout_11.setObjectName("gridLayout_11")
+        spacerItem15 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_11.addItem(spacerItem15, 0, 0, 1, 1)
+        spacerItem16 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_11.addItem(spacerItem16, 0, 2, 1, 1)
+        self.progressBar = QProgressBar(self.gridLayoutWidget_2)
+        self.progressBar.setAutoFillBackground(False)
+        self.progressBar.setProperty("value", 24)
+        self.progressBar.setAlignment(Qt.AlignCenter)
+        self.progressBar.setTextVisible(True)
+        self.progressBar.setOrientation(Qt.Horizontal)
+        self.progressBar.setInvertedAppearance(False)
+        self.progressBar.setTextDirection(QProgressBar.TopToBottom)
+        self.progressBar.setObjectName("progressBar")
+        self.gridLayout_11.addWidget(self.progressBar, 0, 1, 1, 1)
+        self.label_8 = QLabel(self.gridLayoutWidget_2)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_8.sizePolicy().hasHeightForWidth())
+        self.label_8.setSizePolicy(sizePolicy)
+        self.label_8.setAlignment(Qt.AlignCenter)
+        self.label_8.setObjectName("label_8")
+        self.gridLayout_11.addWidget(self.label_8, 1, 1, 1, 1)
+        spacerItem17 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_11.addItem(spacerItem17, 1, 0, 1, 1)
+        spacerItem18 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.gridLayout_11.addItem(spacerItem18, 1, 2, 1, 1)
+        self.gridLayout_6.addLayout(self.gridLayout_11, 6, 0, 1, 1)
+
+        # Translate
+        _translate = QCoreApplication.translate
+        self.label_8.setText(_translate("Dialog", "Descargando..."))
+
+    def login(self):
+
+        self.parent().username = self.usuarioLineEdit_2.text()
+        self.password = self.contraseALineEdit_2.text()
+
+        print(self.parent().username)
+        print(self.password)
+        self.data_login = Usuarios().login_user(username=self.parent().username, password=self.password)
+        print(self.data_login)
+
+        if self.data_login:
+            
+            self.success_login()
+        
+        if not self.data_login:
+            QMessageBox.warning(self, 'Credenciales erróneas', 'Las credenciales ingresadas no corresponden a ninguna combinación usuario-contraseña presente en el sistema. Por favor verifique los datos ingresados.', QMessageBox.Ok, QMessageBox.Ok)
+
+    #########################################################################
+    # Función para actualizar estado de input revisar codificación
+    #########################################################################
+
+    def clickBox(self, state):
+
+        if state == Qt.Checked:
+            self.parent().RevCod1 = 1
+            print("El codigo en clickbox es "+str(self.parent().RevCod1))
+        else:
+            self.parent().RevCod1 = 0
+            print("El codigo en clickbox es "+str(self.parent().RevCod1))
+
+    #########################################################################
+    # Función para marcar encuestas a descargar
+    #########################################################################
+
+    def clickBox_or(self, state):
+        if state == Qt.Checked:
+            try:
+                self.list_descarga.remove(1)
+            except Exception as exception:
+                pass
+            self.list_descarga = self.list_descarga + [1]
+            print(self.list_descarga)
+        else:
+            try:
+                self.list_descarga.remove(1)
+            except Exception as exception:
+                pass
+            print(self.list_descarga)
+
+    def clickBox_sh(self, state):
+        if state == Qt.Checked:
+            try:
+                self.list_descarga.remove(2)
+            except Exception as exception:
+                pass
+            self.list_descarga = self.list_descarga + [2]
+            print(self.list_descarga)
+        else:
+            try:
+                self.list_descarga.remove(2)
+            except Exception as exception:
+                pass
+            print(self.list_descarga)
+
+    def clickBox_pr(self, state):
+        if state == Qt.Checked:
+            try:
+                self.list_descarga.remove(-1)
+            except Exception as exception:
+                pass
+            self.list_descarga = self.list_descarga + [-1]
+            print(self.list_descarga)
+        else:
+            try:
+                self.list_descarga.remove(-1)
+            except Exception as exception:
+                pass
+            print(self.list_descarga)
+
+    def clickBox_ct(self, state):
+        if state == Qt.Checked:
+            try:
+                self.list_descarga.remove(4)
+            except Exception as exception:
+                pass
+            self.list_descarga = self.list_descarga + [4]
+            print(self.list_descarga)
+        else:
+            try:
+                self.list_descarga.remove(4)
+            except Exception as exception:
+                pass
+            print(self.list_descarga)
+
+    def onCountChanged(self, value):
+
+        self.progreso = value
+        self.progressBar.setValue(value)
+        if value == 100:
+            self.progressBar.hide()
+            self.progreso = -1
+
+    ########################################################################
+    # Funcion para descargar
+    ########################################################################
+
+    def descarga(self):
+        if self.progreso == -1:
+            
+            self.download_initiated()
+            self.setEnabled(False)
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+
+            self.progreso = 0
+            self.progressBar.show()
+            self.progressBar.setValue(0)
+
+            self.calc = External(self)
+            self.calc.countChanged.connect(self.onCountChanged)
+            self.calc.start()
+
+            self.calc.result.connect(self.RecResult)
+            self.calc.df.connect(self.Recdf)
+
+    ########################################################################
+    # Funcion para conectar
+    ########################################################################
+
+    def RecResult(self, value):
+        self.result = value
+        
+    def Recdf(self, value):
+        self.parent().df = value
+        # Pasa variables numericas a formato float (así normaliza tratamiento)
+
+        for column in self.parent().df:
+            if self.parent().df[column].dtype == "int64":
+                # print(column)
+                self.parent().df[column] = self.parent().df[column].astype('float64')
+
+        f = tempfileTemporaryDirectory()
+        self.parent().df.to_csv(ospathjoin(f.name, "df.csv"), index=False)
+        self.parent().df = pd.read_csv(ospathjoin(f.name, "df.csv"))
+
+        try:
+            shutilrmtree(f.name)
+        except Exception as exception:
+            pass
+
+        if self.result == 'Completado':
+
+            QApplication.restoreOverrideCursor()
+            # Actualiza estado de errores
+            self.parent().df_Errores = External(self).UpdListError2(self.parent().df, rev_cod=self.parent().RevCod1, key=None)
+
+            # print("El código en recdf es" + str(self.RevCod1))
+            # df_Errores.to_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
+            # self.parent().df.to_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+
+            # df_Errores = pd.read_csv("C:\\Users\\usuario\\Downloads\\df_Errores.csv")
+            # df = pd.read_csv("C:\\Users\\usuario\\Downloads\\df.csv")
+            le = self.parent().df_Errores['interview__key'].drop_duplicates()
+
+            self.parent().df = self.parent().df.merge(le, on='interview__key', indicator='exists', how='outer')
+            self.parent().df = self.parent().df.loc[self.parent().df.exists != "right_only", :]
+            # self.parent().df.loc[(self.parent().df._merge!="both"),['estado']] =   0 # Encuestas que no pegaron, no tienen errores entonces: 1) Silenciar mantener historial cambios, 2) Descomentar para reinicar
+            self.parent().df.loc[(self.parent().df.exists == "both") & (self.parent().df.estado == 0), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.parent().df.loc[(self.parent().df.exists == "both") & (self.parent().df.estado == 1), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.parent().df.loc[(self.parent().df.exists == "both") & (self.parent().df.estado == 2), ['estado']] = 1  # Encuestas que  pegaron,  tienen errores
+            self.parent().df.loc[(self.parent().df.exists == "both") & (self.parent().df.estado == 3), ['estado']] = 3  # Encuestas que  pegaron forzadas,  dejarlas forzadas
+            self.parent().df = self.parent().df.drop(['exists'], axis=1)
+
+            # Numero de observaciones
+            n_DataFull = self.parent().df['interview__key'].nunique()
+            # Numero errores
+            n_ErrorValidar = self.parent().df.loc[self.parent().df.estado == 1, 'interview__key'].nunique()
+            # print(n_ErrorValidar)
+            MensajeConexion = "Conexión Exitosa, {x} registros unicos y {y} registros por validar".format(x=n_DataFull, y=n_ErrorValidar)
+            self.progressBar.hide()
+            self.label_8.hide()
+            self.resize(391, 641)
+            self.gridLayoutWidget_2.setGeometry(QRect(10, 10, 371, 611))
+
+        if self.result != 'Completado':
+            MensajeConexion = self.result
+            self.setEnabled(True)
+
+        # Mensaje de resultado
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setText(MensajeConexion)
+        msgBox.setWindowTitle("Conexión")
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.exec()
+        self.close()
+
+        if self.data_login[0][1] == 'admin':
+            self.parent().admin_features()
+        self.parent().show()
+        self.parent().habilita_botones()
+        self.parent().UpdateErrorsEncuesta()
+
 
 if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     w = MainWindow()
-    w.show()
     app.exec_()
