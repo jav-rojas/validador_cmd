@@ -688,7 +688,7 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
-        self.statusbar.showMessage("Version 2.1 - 8 de Octubre de 2020")
+        self.statusbar.showMessage("Version 2.2 - 24 de Diciembre de 2020")
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
         self.retranslateUi(MainWindow)
@@ -740,7 +740,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.verticalLayoutWidget_11.setGeometry(QRect(60 * factor, 30 * factor, 211 * factor + (self.width() - 1600 * factor), 31 * factor))
             self.gridLayoutWidget_7.setGeometry(QRect(10 * factor, 90 * factor, 321 * factor + (self.width() - 1600 * factor), 71 * factor))
             self.gridLayoutWidget_11.setGeometry(QRect(10 * factor, 170 * factor, 321 * factor + (self.width() - 1600 * factor), 71 * factor))
-            if self.username == 'admin':
+            if self.username == 'admin' or self.username == 'iseguel':
                 self.gridLayoutWidget_8.setGeometry(QRect(10 * factor, 250 * factor, 321 * factor + (self.width() - 1600 * factor), 181 * factor))
                 self.gridLayoutWidget_9.setGeometry(QRect(60 * factor, 30 * factor, 211 * factor + (self.width() - 1600 * factor), 71 * factor))
     
@@ -1377,7 +1377,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # Se actualiza la fecha a partir de la modificación
                 self.df2.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                self.df2.loc[:, 'edit_nom'] = self.username
+                self.df2.loc[:, 'nom_edit'] = self.username
 
                 # print(self.df2.loc[:,['{}'.format(item),'act']])
 
@@ -1938,7 +1938,7 @@ class Ui_Dialog(QDialog):
             self.parent().UpdateComentariosKey()
             self.parent().df2.loc[:, 'estado'] = self.estado_guardar
             self.parent().df2.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.parent().df2.loc[:, 'edit_nom'] = self.parent().username
+            self.parent().df2.loc[:, 'nom_edit'] = self.parent().username
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
             # print(self.parent().df2)
             self.parent().df2.to_sql(f'{table_sql}', con=engine, if_exists='append', chunksize=10, index=False)
@@ -2233,7 +2233,7 @@ class Ui_SegHog(QDialog):
         self.df_ik_seghog = self.parent().df.loc[self.parent().df['interview__key'] == interview_key_segundohogar, :]
         # Actualizamos la fecha y el usuario:
         self.df_ik_seghog.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.df_ik_seghog.loc[:, 'edit_nom'] = self.parent().username
+        self.df_ik_seghog.loc[:, 'nom_edit'] = self.parent().username
 
         # print(self.df_ik_seghog[['interview__key','act']])
         # Hacemos los cambios en el SQL:
@@ -2395,7 +2395,7 @@ class Ui_ControlOriginal(QDialog):
             self.df_ik_original['tipo_muestra'] = self.df_ik_original['tipo_muestra'].astype(str).str.replace("\.0", "").astype(int)
             # print(self.df_ik_original[['interview__key','tipo_muestra']])
             self.df_ik_original.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.df_ik_original.loc[:, 'edit_nom'] = self.parent().username
+            self.df_ik_original.loc[:, 'nom_edit'] = self.parent().username
             # print(self.df_ik_original[['interview__key','act']])
             # Hacemos los cambios en el SQL:
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
@@ -2417,7 +2417,7 @@ class Ui_ControlOriginal(QDialog):
             self.df_ik_control['tipo_muestra'] = self.df_ik_control['tipo_muestra'].astype(str).str.replace("\.0", "").astype(int)
             # print(self.df_ik_control[['interview__key','tipo_muestra']])
             self.df_ik_control.loc[:, 'act'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.df_ik_control.loc[:, 'edit_nom'] = self.parent().username
+            self.df_ik_control.loc[:, 'nom_edit'] = self.parent().username
             # print(self.df_ik_control[['interview__key','act']])
             # Hacemos los cambios en el SQL:
             engine = FunVal.SqlAlchemyEngine(text_user, pass_sql, base_sql)
@@ -3045,7 +3045,7 @@ class Ui_Login(QDialog):
         msgBox.exec()
         self.close()
 
-        if self.data_login[0][1] == 'admin':
+        if self.data_login[0][1] == 'admin' or self.data_login[0][1] == 'iseguel':
             self.parent().admin_features()
         self.parent().show()
         self.parent().habilita_botones()

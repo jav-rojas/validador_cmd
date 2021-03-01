@@ -1096,8 +1096,6 @@ border-left-color: rgb(0, 85, 255);</string>
    </layout>
   </widget>
  </widget>
- <resources>
-  <include location="login.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

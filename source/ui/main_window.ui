@@ -708,6 +708,12 @@
        </item>
        <item row="4" column="0" colspan="3">
         <widget class="QGroupBox" name="groupBox_BaseValidada">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="title">
           <string>Descarga de Base Validada</string>
          </property>
